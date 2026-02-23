@@ -27,7 +27,7 @@ def run_full_pipeline(db: Session = Depends(get_db)):
     # Step 2: Watchlist Building (for hot/emerging themes)
     builder = WatchlistBuilder()
     total_items = 0
-    active_themes = [t for t in themes if t.status in (ThemeStatus.HOT, ThemeStatus.EMERGING)]
+    active_themes = [t for t in themes if t.score > 0.1]  # Process any theme with signal
     for theme in active_themes:
         items = builder.build_for_theme(theme, db)
         total_items += len(items)

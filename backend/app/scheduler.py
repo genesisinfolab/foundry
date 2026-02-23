@@ -23,9 +23,8 @@ def run_scan_cycle():
 
         # Build watchlists for hot themes
         builder = WatchlistBuilder()
-        from app.models.theme import ThemeStatus
         for theme in themes:
-            if theme.status in (ThemeStatus.HOT, ThemeStatus.EMERGING):
+            if theme.score > 0.1:
                 builder.build_for_theme(theme, db)
 
         # Structure check
