@@ -19,8 +19,12 @@ from app.models.watchlist import WatchlistItem
 from app.integrations.finnhub_client import FinnhubClient
 from app.integrations.alpha_vantage_client import AlphaVantageClient
 from app.integrations.alpaca_client import AlpacaClient
+from app.integrations.etf_holdings import ETFHoldingsClient
 
 logger = logging.getLogger(__name__)
+
+# Import SECTOR_ETFS mapping for cross-referencing theme names
+from app.services.theme_detector import SECTOR_ETFS
 
 
 class WatchlistBuilder:
@@ -28,6 +32,8 @@ class WatchlistBuilder:
         self.finnhub = FinnhubClient()
         self.av = AlphaVantageClient()
         self.alpaca = AlpacaClient()
+        s = get_settings()
+        self.etf_holdings = ETFHoldingsClient(s.finnhub_api_key)
 
     def build_for_theme(self, theme: Theme, db: Session) -> list[WatchlistItem]:
         """Build watchlist for a detected theme"""
@@ -77,8 +83,28 @@ class WatchlistBuilder:
                     logger.warning(f"Finnhub peers failed for {sym}: {e}")
 
         # Method 3: ETF holdings (from theme's related ETFs)
-        etfs = json.loads(theme.related_etfs) if theme.related_etfs else []
-        # Note: ETF holdings would require additional API; using peers as proxy
+        related_etfs = json.loads(theme.related_etfs) if theme.related_etfs else []
+        for etf in related_etfs[:5]:
+            try:
+                holdings = self.etf_holdings.get_holdings(etf)
+                for h in holdings:
+                    sym = h.get("symbol", "").replace(".", "-")
+                    if sym and len(sym) <= 5 and sym.replace("-", "").isalpha():
+                        symbols.add(sym)
+            except Exception as e:
+                logger.warning(f"ETF holdings failed for {etf}: {e}")
+
+        # Method 4: SECTOR_ETFS mapping — if theme name matches a known sector
+        matching_sector_etfs = SECTOR_ETFS.get(theme.name, [])
+        for etf in matching_sector_etfs[:3]:
+            try:
+                holdings = self.etf_holdings.get_holdings(etf)
+                for h in holdings:
+                    sym = h.get("symbol", "").replace(".", "-")
+                    if sym and len(sym) <= 5 and sym.replace("-", "").isalpha():
+                        symbols.add(sym)
+            except Exception as e:
+                logger.warning(f"SECTOR_ETFS holdings failed for {etf}: {e}")
 
         return list(symbols)
 

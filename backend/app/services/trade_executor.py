@@ -17,6 +17,7 @@ from app.models.position import Position, PositionAction, PositionStatus
 from app.models.watchlist import WatchlistItem
 from app.models.alert import Alert
 from app.integrations.alpaca_client import AlpacaClient
+from app.services.risk_manager import calculate_atr
 
 logger = logging.getLogger(__name__)
 

@@ -2,12 +2,13 @@
 Risk Manager — Step 7 of Newman Strategy
 
 Handles:
-- Stop losses (-0.5% from entry)
+- Stop losses (ATR-based, floor at -2%)
 - Profit taking (scale out at 15%, 30%, 45%)
 - Theme exposure limits
 - Position monitoring
 """
 import logging
+import numpy as np
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -19,6 +20,26 @@ from app.models.alert import Alert
 from app.integrations.alpaca_client import AlpacaClient
 
 logger = logging.getLogger(__name__)
+
+
+def calculate_atr(bars: list[dict], period: int = 14) -> float:
+    """Calculate ATR-14 from a list of OHLC bars"""
+    if len(bars) < period + 1:
+        return 0.0
+    true_ranges = []
+    for i in range(1, len(bars)):
+        high = bars[i]["high"]
+        low = bars[i]["low"]
+        prev_close = bars[i - 1]["close"]
+        tr = max(high - low, abs(high - prev_close), abs(low - prev_close))
+        true_ranges.append(tr)
+    if not true_ranges:
+        return 0.0
+    # Use EMA (Wilder's smoothing) for ATR
+    atr = sum(true_ranges[:period]) / period
+    for tr in true_ranges[period:]:
+        atr = (atr * (period - 1) + tr) / period
+    return atr
 
 
 class RiskManager:
@@ -62,8 +83,27 @@ class RiskManager:
         pos.unrealized_pnl = (current_price - pos.avg_entry_price) * pos.qty
         pos.updated_at = datetime.now(timezone.utc)
 
-        # ── Stop Loss ────────────────────────────────────
-        if pnl_pct <= self.settings.stop_loss_pct:
+        # ── ATR-Based Stop Loss ──────────────────────────
+        # Recalculate ATR stop if not set or entry is fresh
+        if pos.stop_loss_price is None or pos.stop_loss_price <= 0:
+            try:
+                bars = self.alpaca.get_bars(pos.symbol, days=20)
+                if len(bars) >= 15:
+                    atr = calculate_atr(bars)
+                    if atr > 0:
+                        atr_stop = pos.avg_entry_price - (1.5 * atr)
+                        # Floor: ATR stop must not exceed -2% loss
+                        floor_stop = pos.avg_entry_price * (1 + self.settings.stop_loss_pct)
+                        pos.stop_loss_price = max(atr_stop, floor_stop)
+                        logger.debug(f"ATR stop for {pos.symbol}: ${pos.stop_loss_price:.2f} (ATR={atr:.2f})")
+            except Exception as e:
+                logger.warning(f"ATR calculation failed for {pos.symbol}: {e}")
+
+        # Use ATR-based stop if available, else fall back to percentage stop
+        if pos.stop_loss_price and pos.stop_loss_price > 0:
+            if current_price <= pos.stop_loss_price:
+                return self._execute_stop_loss(pos, current_price, pnl_pct, db)
+        elif pnl_pct <= self.settings.stop_loss_pct:
             return self._execute_stop_loss(pos, current_price, pnl_pct, db)
 
         # ── Profit Taking ────────────────────────────────

@@ -25,6 +25,8 @@ from app.integrations.twitter_client import TwitterClient
 from app.integrations.reddit_client import RedditClient
 from app.integrations.perigon_client import PerigonClient
 from app.integrations.alpaca_client import AlpacaClient
+from app.services.social_sentiment import SocialSentimentAnalyzer
+from app.services.theme_classifier import ThemeClassifier, INVESTABLE_CATEGORIES
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +66,8 @@ class ThemeDetector:
         self.perigon = PerigonClient()
         self.alpaca = AlpacaClient()
         self.settings = get_settings()
+        self.sentiment_analyzer = SocialSentimentAnalyzer()
+        self.theme_classifier = ThemeClassifier()
 
     def scan_all(self, db: Session) -> list[Theme]:
         """Run full theme detection scan across all sources"""
@@ -150,14 +154,19 @@ class ThemeDetector:
             for ticker_data in all_tickers[:15]:
                 symbol = ticker_data["symbol"]
                 mentions = ticker_data["total_mentions"]
+                posts = ticker_data.get("posts", [])
                 if mentions >= 3:  # Minimum mention threshold
-                    # Use symbol as temporary theme identifier
-                    scores[f"ticker_{symbol}"]["social_score"] += min(mentions / 20, 1.0)
-                    scores[f"ticker_{symbol}"]["sources"].append({
-                        "type": "reddit", "source": "reddit",
-                        "headline": f"${symbol} mentioned {mentions} times across stock subreddits",
-                        "sentiment": 0.5,  # Assume moderately positive if being discussed
-                    })
+                    # Run sentiment analysis on actual posts
+                    sentiment_result = self.sentiment_analyzer.analyze_posts(posts) if posts else {"score": 0.5}
+                    sentiment_score = sentiment_result.get("score", 0.5)
+                    # Only add if net bullish
+                    if sentiment_score > 0.1:
+                        scores[f"ticker_{symbol}"]["social_score"] += min(mentions / 20, 1.0) * (0.5 + sentiment_score * 0.5)
+                        scores[f"ticker_{symbol}"]["sources"].append({
+                            "type": "reddit", "source": "reddit",
+                            "headline": f"${symbol} mentioned {mentions} times across stock subreddits (sentiment: {sentiment_score:.2f})",
+                            "sentiment": sentiment_score,
+                        })
         except Exception as e:
             logger.warning(f"Reddit scan failed: {e}")
 
@@ -167,12 +176,17 @@ class ThemeDetector:
                 keywords = [theme_name.replace("_", " "), f"${etfs[0]}"]
                 tweets = self.twitter.search_theme_mentions(keywords, max_results=50)
                 if len(tweets) > 10:
-                    scores[theme_name]["social_score"] += min(len(tweets) / 50, 1.0)
-                    scores[theme_name]["sources"].append({
-                        "type": "twitter", "source": "twitter",
-                        "headline": f"Found {len(tweets)} tweets about {theme_name}",
-                        "sentiment": 0.3,
-                    })
+                    # Run sentiment analysis on tweet objects
+                    sentiment_result = self.sentiment_analyzer.analyze_posts(tweets)
+                    sentiment_score = sentiment_result.get("score", 0.0)
+                    # Only add if net bullish
+                    if sentiment_score > 0.1:
+                        scores[theme_name]["social_score"] += min(len(tweets) / 50, 1.0) * (0.5 + sentiment_score * 0.5)
+                        scores[theme_name]["sources"].append({
+                            "type": "twitter", "source": "twitter",
+                            "headline": f"Found {len(tweets)} tweets about {theme_name} (sentiment: {sentiment_score:.2f})",
+                            "sentiment": sentiment_score,
+                        })
             except Exception as e:
                 logger.warning(f"Twitter scan failed for {theme_name}: {e}")
 
@@ -235,6 +249,26 @@ class ThemeDetector:
             if composite < 0.1:
                 continue
 
+            # Classify the theme — skip noise/irrelevant
+            sources_text = " ".join(
+                src.get("headline", "") for src in data["sources"] if src.get("headline")
+            )
+            classification = self.theme_classifier._extract_sector(f"{name} {sources_text}")
+            # Check if classified as noise
+            if self.theme_classifier._is_noise(sources_text):
+                logger.info(f"Skipping noise theme: {name}")
+                continue
+
+            # Get investable category
+            best_category = None
+            best_cat_score = 0.0
+            sources_lower = sources_text.lower()
+            for cat_name, cat_data in INVESTABLE_CATEGORIES.items():
+                score = sum(cat_data["weight"] for kw in cat_data["keywords"] if kw in sources_lower)
+                if score > best_cat_score:
+                    best_cat_score = score
+                    best_category = cat_name
+
             # Determine status
             if composite > 0.6:
                 status = ThemeStatus.HOT
@@ -253,6 +287,7 @@ class ThemeDetector:
                 theme.status = status
                 theme.keywords = json.dumps(list(set(data["keywords"])))
                 theme.related_etfs = json.dumps(data["etfs"])
+                theme.category = best_category
                 theme.updated_at = datetime.now(timezone.utc)
             else:
                 theme = Theme(
@@ -264,6 +299,7 @@ class ThemeDetector:
                     status=status,
                     keywords=json.dumps(list(set(data["keywords"]))),
                     related_etfs=json.dumps(data["etfs"]),
+                    category=best_category,
                 )
                 db.add(theme)
 

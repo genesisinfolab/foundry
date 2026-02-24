@@ -1,5 +1,5 @@
 """Theme detection models"""
-from sqlalchemy import Column, Integer, String, Float, DateTime, Text, Enum, ForeignKey
+from sqlalchemy import Column, Integer, String, Float, DateTime, Text, Enum, ForeignKey, Boolean
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
 import enum
@@ -33,6 +33,13 @@ class Theme(Base):
 
     # Related ETFs
     related_etfs = Column(Text, nullable=True)  # JSON list
+
+    # Theme classification (regulatory_catalyst, technology_breakthrough, etc.)
+    category = Column(String(100), nullable=True)
+
+    # Saturation detection
+    is_saturated = Column(Boolean, default=False)
+    saturated_at = Column(DateTime, nullable=True)
 
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc),
