@@ -18,6 +18,7 @@ from app.config import get_settings
 from app.models.position import Position, PositionAction, PositionStatus
 from app.models.alert import Alert
 from app.integrations.alpaca_client import AlpacaClient
+from app.services.notifier import notify_trade
 
 logger = logging.getLogger(__name__)
 
@@ -152,6 +153,7 @@ class RiskManager:
         )
         db.add(alert)
 
+        notify_trade("STOP_LOSS", pos.symbol, f"Closed @ ${price:.2f}, P&L {pnl_pct:.2%} (${pos.realized_pnl:.2f})")
         return {"symbol": pos.symbol, "action": "stop_loss", "pnl_pct": pnl_pct, "pnl_usd": pos.realized_pnl}
 
     def _execute_profit_take(self, pos: Position, price: float, pnl_pct: float, tier: int, db: Session) -> dict:
@@ -197,6 +199,7 @@ class RiskManager:
         )
         db.add(alert)
 
+        notify_trade("PROFIT_TAKE", pos.symbol, f"T{tier}: sold {sell_qty} @ ${price:.2f}, realized ${realized:.2f}, P&L {pnl_pct:.2%}")
         return {"symbol": pos.symbol, "action": f"profit_take_t{tier}", "sold_qty": sell_qty, "realized": realized}
 
     def get_portfolio_summary(self, db: Session) -> dict:

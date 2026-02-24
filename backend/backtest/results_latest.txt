@@ -1,0 +1,87 @@
+
+Scanning cannabis...
+  MSOS: 4 trades from 172 bars
+  TLRY: 4 trades from 172 bars
+  CGC: 3 trades from 172 bars
+  ACB: 3 trades from 172 bars
+  CRON: 3 trades from 172 bars
+
+Scanning clean_energy...
+  ENPH: 2 trades from 172 bars
+  SEDG: 1 trades from 172 bars
+  FSLR: 2 trades from 172 bars
+  RUN: 2 trades from 172 bars
+  ARRY: 1 trades from 172 bars
+
+Scanning biotech...
+  MRNA: 2 trades from 172 bars
+  BNTX: 1 trades from 172 bars
+  NVAX: 4 trades from 172 bars
+  CRSP: 2 trades from 172 bars
+  BEAM: 2 trades from 172 bars
+
+Scanning semiconductors...
+  NVDA: 0 trades from 172 bars
+  AMD: 1 trades from 172 bars
+  SMCI: 1 trades from 172 bars
+  MRVL: 2 trades from 172 bars
+  ON: 1 trades from 172 bars
+
+Scanning ev...
+  RIVN: 2 trades from 172 bars
+  LCID: 0 trades from 172 bars
+  GOEV: SKIP (KeyError)
+  NKLA: SKIP (KeyError)
+  SOLO: SKIP (KeyError)
+
+Scanning ai_software...
+  SOUN: 1 trades from 172 bars
+  BBAI: 1 trades from 172 bars
+  AITX: SKIP (KeyError)
+
+Scanning uranium...
+  UEC: 0 trades from 172 bars
+  UUUU: 1 trades from 172 bars
+  DNN: 0 trades from 172 bars
+  CCJ: 2 trades from 172 bars
+  NXE: 0 trades from 172 bars
+
+Scanning space...
+  RKLB: 1 trades from 172 bars
+  ASTR: SKIP (KeyError)
+  SPCE: 2 trades from 172 bars
+  ASTS: 2 trades from 172 bars
+
+===== NEWMAN STRATEGY BACKTEST RESULTS =====
+Period: 252 trading days lookback
+Symbols tested: 37 (5 skipped/unavailable)
+Total Trades: 53
+Winning Trades: 6 (11.3%)
+Average Win: +48.1%
+Average Loss: -10.5%
+Best Trade: BEAM +52.8%
+Worst Trade: MSOS -23.3%
+Total Return: -19.4% (on $100k → $80,642)
+Max Drawdown: -22.2%
+
+BY SECTOR:
+  cannabis            :  17 trades | 6% win | avg -8.7%
+  clean_energy        :   8 trades | 12% win | avg -4.6%
+  biotech             :  11 trades | 9% win | avg -4.1%
+  semiconductors      :   5 trades | 0% win | avg -5.5%
+  ev                  :   2 trades | 50% win | avg +17.7%
+  ai_software         :   2 trades | 50% win | avg +20.9%
+  uranium             :   3 trades | 33% win | avg +9.5%
+  space               :   5 trades | 0% win | avg -10.7%
+
+TOP 5 TRADES:
+  1. BEAM  : +52.8% (profit_t3, 50d)
+  2. BBAI  : +52.7% (profit_t3, 50d)
+  3. TLRY  : +50.4% (profit_t3, 50d)
+  4. UUUU  : +49.0% (profit_t3, 50d)
+  5. RIVN  : +47.2% (profit_t3, 50d)
+
+Skipped symbols: GOEV, NKLA, SOLO, AITX, ASTR
+
+
+Saved: results.json, results_latest.txt, trades.csv

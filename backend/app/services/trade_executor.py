@@ -18,6 +18,7 @@ from app.models.watchlist import WatchlistItem
 from app.models.alert import Alert
 from app.integrations.alpaca_client import AlpacaClient
 from app.services.risk_manager import calculate_atr
+from app.services.notifier import notify_trade
 
 logger = logging.getLogger(__name__)
 
@@ -102,6 +103,7 @@ class TradeExecutor:
         db.add(alert)
 
         db.commit()
+        notify_trade("ENTRY", item.symbol, f"{qty} shares @ ${item.price:.2f}")
         logger.info(f"ENTRY: {item.symbol} — {qty} shares @ ${item.price:.2f}")
         return position
 
@@ -201,5 +203,6 @@ class TradeExecutor:
         db.add(alert)
 
         db.commit()
+        notify_trade("PYRAMID", position.symbol, f"L{next_level}: +{add_qty} shares @ ${current_price:.2f}, P&L {pnl_pct:.1%}")
         logger.info(f"PYRAMID L{next_level}: {position.symbol} +{add_qty} @ ${current_price:.2f}")
         return action
