@@ -26,6 +26,77 @@ logger = logging.getLogger(__name__)
 # Import SECTOR_ETFS mapping for cross-referencing theme names
 from app.services.theme_detector import SECTOR_ETFS
 
+# ── Hardcoded sector stock universe (fallback when ETF API unavailable) ──────
+# Covers the most common Newman themes. Stocks are small/mid-cap with tradeable float.
+SECTOR_STOCKS: dict[str, list[str]] = {
+    "cannabis": ["MSOS", "TLRY", "CGC", "ACB", "CRON", "SNDL", "GTBIF", "TCNNF", "CURLF", "AYRWF"],
+    "clean_energy": ["ENPH", "SEDG", "FSLR", "RUN", "NOVA", "ARRY", "CSIQ", "MAXN", "SPWR", "SHLS"],
+    "solar": ["ENPH", "SEDG", "FSLR", "RUN", "NOVA", "CSIQ", "MAXN", "SPWR", "ARRY", "SHLS"],
+    "biotech": ["MRNA", "BNTX", "NVAX", "CRSP", "BEAM", "EDIT", "NTLA", "ALNY", "RXRX", "SGEN"],
+    "genomics": ["CRSP", "BEAM", "EDIT", "NTLA", "RXRX", "PACB", "ILMN", "CDNA", "FATE", "BLUE"],
+    "semiconductors": ["NVDA", "AMD", "SMCI", "MRVL", "ON", "WOLF", "AEHR", "CEVA", "SLAB", "DIOD"],
+    "ev": ["RIVN", "LCID", "FSR", "SOLO", "WKHS", "RIDE", "GOEV", "NKLA", "ZEV", "BLNK"],
+    "ev_charging": ["BLNK", "CHPT", "EVGO", "VLTA", "SBE", "SPNV", "CLII", "AMPE", "PTRA"],
+    "ai_software": ["SOUN", "BBAI", "AITX", "GFAI", "CXAI", "TSSI", "INPX", "PERI", "OTRK", "BTBT"],
+    "artificial_intelligence": ["SOUN", "BBAI", "AITX", "GFAI", "PLTR", "AI", "BBAI", "TSSI", "INPX"],
+    "uranium": ["UEC", "UUUU", "DNN", "CCJ", "NXE", "URG", "BQSSF", "PALAF", "HPNNF", "LTBR"],
+    "nuclear": ["UEC", "UUUU", "DNN", "CCJ", "NXE", "LTBR", "OKLO", "NNE", "SMR", "BWXT"],
+    "robotics": ["RBOT", "ISRG", "IRBT", "LIDR", "OUST", "VNET", "ACMR", "MVIS", "AEYE"],
+    "space": ["RKLB", "SPCE", "ASTS", "LUNR", "MNTS", "PL", "SATL", "KTOS", "AJRD"],
+    "cybersecurity": ["CRWD", "S", "QLYS", "VRNS", "DDOG", "ZS", "TENB", "RDWR", "CYBE"],
+    "defense": ["KTOS", "AVAV", "CACI", "LDOS", "BWXT", "DRS", "HWM", "TDG", "GD"],
+    "crypto": ["MSTR", "COIN", "MARA", "RIOT", "CLSK", "BTBT", "CIFR", "IREN", "HUT"],
+    "bitcoin": ["MSTR", "COIN", "MARA", "RIOT", "CLSK", "BTBT", "CIFR", "IREN", "HUT"],
+    "3d_printing": ["DDD", "SSYS", "MKFG", "NNDM", "XONE", "DM", "VLD", "SHPW"],
+    "psychedelics": ["CMPS", "ATAI", "MNT", "MNMD", "NUMI", "TRYP", "CYBN"],
+    "weight_loss": ["HIMS", "NTRA", "WW", "RVNC", "GPCR", "PEPG", "NKTR"],
+    "ozempic": ["HIMS", "NTRA", "WW", "RVNC", "GPCR", "PEPG", "NKTR"],
+}
+
+# Keywords that map to sectors (for fuzzy theme matching)
+THEME_KEYWORD_MAP: dict[str, str] = {
+    "cannabis": "cannabis", "marijuana": "cannabis", "legalization": "cannabis", "weed": "cannabis",
+    "solar": "solar", "photovoltaic": "solar", "panel": "solar",
+    "clean energy": "clean_energy", "renewable": "clean_energy", "wind": "clean_energy",
+    "biotech": "biotech", "fda": "biotech", "approval": "biotech", "clinical": "biotech",
+    "gene": "genomics", "crispr": "genomics", "genomics": "genomics",
+    "semiconductor": "semiconductors", "chip": "semiconductors", "nvidia": "semiconductors",
+    "electric vehicle": "ev", "ev ": "ev", "lithium": "ev", "battery": "ev",
+    "charging": "ev_charging", "charger": "ev_charging",
+    "artificial intelligence": "artificial_intelligence", "ai ": "ai_software", "llm": "ai_software",
+    "uranium": "uranium", "nuclear": "nuclear", "reactor": "nuclear",
+    "robot": "robotics", "automation": "robotics", "drone": "robotics",
+    "space": "space", "satellite": "space", "launch": "space", "rocket": "space",
+    "cyber": "cybersecurity", "ransomware": "cybersecurity", "hack": "cybersecurity",
+    "defense": "defense", "military": "defense", "pentagon": "defense",
+    "bitcoin": "bitcoin", "crypto": "crypto", "blockchain": "crypto", "ethereum": "crypto",
+    "3d print": "3d_printing", "additive": "3d_printing",
+    "psychedelic": "psychedelics", "psilocybin": "psychedelics", "mdma": "psychedelics",
+    "weight loss": "weight_loss", "obesity": "weight_loss", "glp-1": "weight_loss", "ozempic": "ozempic",
+    "acquisition": "biotech",  # M&A themes often hit biotech
+    "partnership": "biotech",
+    "approval": "biotech",
+}
+
+def _get_sector_stocks_for_theme(theme_name: str, keywords: list[str]) -> list[str]:
+    """Match a theme to a hardcoded sector stock list using name + keywords."""
+    theme_lower = theme_name.lower().replace("_", " ")
+    # Direct name match
+    for sector, stocks in SECTOR_STOCKS.items():
+        if sector.replace("_", " ") in theme_lower or theme_lower in sector.replace("_", " "):
+            return stocks
+    # Keyword match
+    all_text = " ".join([theme_lower] + [k.lower() for k in keywords])
+    for keyword, sector in THEME_KEYWORD_MAP.items():
+        if keyword in all_text and sector in SECTOR_STOCKS:
+            return SECTOR_STOCKS[sector]
+    # Catalyst themes — default to a broad universe of active small caps
+    if any(x in theme_lower for x in ["catalyst", "acquisition", "partnership", "approval", "merger"]):
+        # Mix of biotech + EV + AI (most common M&A/catalyst sectors)
+        return (SECTOR_STOCKS["biotech"][:5] + SECTOR_STOCKS["ev"][:5] +
+                SECTOR_STOCKS["ai_software"][:5] + SECTOR_STOCKS["semiconductors"][:5])
+    return []
+
 
 class WatchlistBuilder:
     def __init__(self):
@@ -105,6 +176,15 @@ class WatchlistBuilder:
                         symbols.add(sym)
             except Exception as e:
                 logger.warning(f"SECTOR_ETFS holdings failed for {etf}: {e}")
+
+        # Method 5: Hardcoded sector universe (guaranteed fallback)
+        # Kicks in when ETF APIs return nothing — maps theme name + keywords to known sector stocks
+        if len(symbols) < 5:
+            kws = json.loads(theme.keywords) if theme.keywords else []
+            sector_stocks = _get_sector_stocks_for_theme(theme.name, kws)
+            if sector_stocks:
+                symbols.update(sector_stocks)
+                logger.info(f"Used hardcoded sector stocks for {theme.name}: {len(sector_stocks)} candidates")
 
         return list(symbols)
 
