@@ -59,7 +59,20 @@ app.include_router(pipeline.router)
 
 @app.get("/")
 def root():
-    return {"name": "Newman Trading System", "version": "1.0.0", "status": "running"}
+    from app.services import newman_persona
+    return {
+        "name": "Newman Trading System",
+        "version": "1.0.0",
+        "status": "running",
+        "persona": newman_persona.PERSONA_NAME,
+    }
+
+
+@app.get("/api/persona")
+def persona():
+    """Return the active trading persona and its operating parameters."""
+    from app.services import newman_persona
+    return newman_persona.describe()
 
 
 @app.get("/api/account")

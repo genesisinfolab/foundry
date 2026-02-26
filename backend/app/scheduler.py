@@ -1,4 +1,4 @@
-"""Background scheduler for automated scanning"""
+"""Background scheduler for automated scanning — Newman persona baseline"""
 import logging
 from apscheduler.schedulers.background import BackgroundScheduler
 from app.database import SessionLocal
@@ -8,8 +8,11 @@ from app.services.structure_checker import StructureChecker
 from app.services.breakout_scanner import BreakoutScanner
 from app.services.trade_executor import TradeExecutor
 from app.services.risk_manager import RiskManager
+from app.services.notifier import notify_scan_summary
+from app.services import newman_persona
 
 logger = logging.getLogger(__name__)
+logger.info(f"Newman persona loaded: {newman_persona.PERSONA_NAME} v{newman_persona.PERSONA_VERSION} — {newman_persona.PERSONA_DESCRIPTION}")
 
 
 def run_scan_cycle():
@@ -46,7 +49,9 @@ def run_scan_cycle():
             if item:
                 executor.shotgun_entry(item, db)
 
-        logger.info(f"Scan cycle complete. {len(themes)} themes, {len(breakouts)} breakouts.")
+        trades_placed = len(breakouts)  # each breakout → one shotgun entry attempt
+        notify_scan_summary(len(themes), len(breakouts), trades_placed)
+        logger.info(f"Scan cycle complete. {len(themes)} themes, {len(breakouts)} breakouts, {trades_placed} orders.")
     except Exception as e:
         logger.error(f"Scan cycle failed: {e}")
     finally:
@@ -86,12 +91,12 @@ def create_scheduler() -> BackgroundScheduler:
         id="scan_cycle",
     )
 
-    # Risk check every 5 min during market hours (through 3:59 PM ET)
+    # Risk check every 5 min during market hours (through 4:00 PM ET close)
     scheduler.add_job(
         run_risk_check,
         "cron",
         day_of_week="mon-fri",
-        hour="9-15",
+        hour="9-16",
         minute="*/5",
         timezone="US/Eastern",
         id="risk_check",

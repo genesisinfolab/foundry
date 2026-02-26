@@ -7,6 +7,7 @@ Handles:
 - All trades via Alpaca paper trading
 """
 import logging
+import time
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -18,7 +19,8 @@ from app.models.watchlist import WatchlistItem
 from app.models.alert import Alert
 from app.integrations.alpaca_client import AlpacaClient
 from app.services.risk_manager import calculate_atr
-from app.services.notifier import notify_trade
+from app.services.notifier import notify_trade, notify_entry, notify_exit, notify_pyramid, notify_stop
+from app.services.newman_persona import score_corners, position_size_for_corners
 
 logger = logging.getLogger(__name__)
 
@@ -64,19 +66,45 @@ class TradeExecutor:
             logger.error(f"Order failed for {item.symbol}: {e}")
             return None
 
+        # Get actual fill price from Alpaca (paper fills are near-instant)
+        fill_price = item.price
+        try:
+            time.sleep(1)  # brief wait for fill
+            alpaca_positions = {p["symbol"]: p for p in self.alpaca.get_positions()}
+            if item.symbol in alpaca_positions:
+                fill_price = alpaca_positions[item.symbol]["avg_entry_price"]
+                qty = int(alpaca_positions[item.symbol]["qty"])
+                logger.info(f"Actual fill price for {item.symbol}: ${fill_price:.3f} (watchlist was ${item.price:.3f})")
+        except Exception as e:
+            logger.warning(f"Could not fetch fill price for {item.symbol}, using watchlist price: {e}")
+
+        # ATR-based stop: 1.5x ATR below fill price, floor at stop_loss_pct
+        stop_price = fill_price * (1 + s.stop_loss_pct)
+        try:
+            bars = self.alpaca.get_bars(item.symbol, days=20)
+            if len(bars) >= 15:
+                from app.services.risk_manager import calculate_atr
+                atr = calculate_atr(bars)
+                if atr > 0:
+                    atr_stop = fill_price - (1.5 * atr)
+                    stop_price = max(atr_stop, fill_price * (1 + s.stop_loss_pct))
+                    logger.info(f"ATR stop for {item.symbol}: ${stop_price:.2f} (ATR={atr:.2f}, floor=${fill_price * (1 + s.stop_loss_pct):.2f})")
+        except Exception as e:
+            logger.warning(f"ATR stop calculation failed for {item.symbol}: {e}")
+
         # Record position
         position = Position(
             symbol=item.symbol,
             theme_id=item.theme_id,
             status=PositionStatus.OPEN,
             side="buy",
-            avg_entry_price=item.price,
-            current_price=item.price,
+            avg_entry_price=fill_price,
+            current_price=fill_price,
             qty=qty,
-            market_value=qty * item.price,
-            cost_basis=qty * item.price,
+            market_value=qty * fill_price,
+            cost_basis=qty * fill_price,
             pyramid_level=0,
-            stop_loss_price=item.price * (1 + s.stop_loss_pct),
+            stop_loss_price=stop_price,
             alpaca_order_id=order.get("order_id"),
         )
         db.add(position)
@@ -97,14 +125,30 @@ class TradeExecutor:
             alert_type="trade_entry",
             symbol=item.symbol,
             title=f"🎯 Shotgun Entry: {item.symbol}",
-            message=f"Bought {qty} shares @ ~${item.price:.2f} = ${qty * item.price:.2f}",
+            message=f"Bought {qty} shares @ ${fill_price:.2f} = ${qty * fill_price:.2f} | Stop: ${stop_price:.2f}",
             severity="info",
         )
         db.add(alert)
 
         db.commit()
-        notify_trade("ENTRY", item.symbol, f"{qty} shares @ ${item.price:.2f}")
-        logger.info(f"ENTRY: {item.symbol} — {qty} shares @ ${item.price:.2f}")
+
+        # Score corners for this entry
+        corners = score_corners(
+            chart_breakout=item.near_breakout or False,
+            structure_clean=item.structure_clean or False,
+            sector_active=item.theme is not None,
+            catalyst_present=False,  # TODO: wire catalyst field when available
+        )
+
+        notify_entry(
+            symbol=item.symbol,
+            qty=qty,
+            price=fill_price,
+            stop=stop_price,
+            theme=item.theme.name if item.theme else "",
+            corners=corners,
+        )
+        logger.info(f"ENTRY: {item.symbol} — {qty} shares @ ${fill_price:.2f} (stop ${stop_price:.2f}) [{corners}/4 corners]")
         return position
 
     def check_pyramid(self, position: Position, db: Session) -> Optional[PositionAction]:
@@ -203,6 +247,13 @@ class TradeExecutor:
         db.add(alert)
 
         db.commit()
-        notify_trade("PYRAMID", position.symbol, f"L{next_level}: +{add_qty} shares @ ${current_price:.2f}, P&L {pnl_pct:.1%}")
-        logger.info(f"PYRAMID L{next_level}: {position.symbol} +{add_qty} @ ${current_price:.2f}")
+        notify_pyramid(
+            symbol=position.symbol,
+            level=next_level,
+            add_qty=add_qty,
+            price=current_price,
+            total_qty=total_qty,
+            pnl_pct=pnl_pct * 100,
+        )
+        logger.info(f"PYRAMID L{next_level}: {position.symbol} +{add_qty} @ ${current_price:.2f}, P&L {pnl_pct:.1%}")
         return action
