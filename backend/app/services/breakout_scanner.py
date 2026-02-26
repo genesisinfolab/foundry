@@ -76,11 +76,18 @@ class BreakoutScanner:
         signals = []
         triggered = False
 
-        # Signal 1: Volume surge
+        # Bearish volume filter
+        price_change_pct = (closes[-1] - closes[-2]) / closes[-2] if len(closes) >= 2 else 0
         surge_threshold = self.settings.volume_surge_multiplier
+        bearish_surge = vol_ratio >= surge_threshold and price_change_pct < -0.03
+
+        # Signal 1: Volume surge
         if vol_ratio >= surge_threshold:
-            signals.append(f"🔊 Volume surge: {vol_ratio:.1f}x avg ({current_volume:,.0f} vs {avg_volume_20d:,.0f})")
-            triggered = True
+            if bearish_surge:
+                signals.append(f"⚠️ Bearish volume surge: price down {price_change_pct:.1%} on {vol_ratio:.1f}x volume — skipping")
+            else:
+                signals.append(f"🔊 Volume surge: {vol_ratio:.1f}x avg ({current_volume:,.0f} vs {avg_volume_20d:,.0f})")
+                triggered = True
 
         # Signal 2: Price breakout above 20-day high
         if current_price >= high_20d * 0.98:  # Within 2% of or above 20-day high
@@ -92,6 +99,8 @@ class BreakoutScanner:
         if consolidation_range < 0.10 and vol_ratio > 1.5:  # <10% range + volume
             signals.append(f"📦 Consolidation breakout: {consolidation_range:.1%} range with {vol_ratio:.1f}x volume")
             triggered = True
+
+
 
         # Signal 4: Downtrend reversal
         if trend_direction == "down" and current_price > closes[-5:].mean():
@@ -116,17 +125,26 @@ class BreakoutScanner:
 
         # Create alert if breakout triggered
         if triggered:
-            alert = Alert(
-                alert_type="breakout" if vol_ratio >= surge_threshold else "volume_surge",
-                symbol=item.symbol,
-                theme_name=item.theme.name if item.theme else None,
-                title=f"🚨 Breakout: {item.symbol}",
-                message="\n".join(signals),
-                severity="action",
-            )
-            db.add(alert)
-            db.commit()
-            logger.info(f"BREAKOUT: {item.symbol} — {'; '.join(signals)}")
+            today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+            existing = db.query(Alert).filter(
+                Alert.symbol == item.symbol,
+                Alert.alert_type.in_(["breakout", "volume_surge"]),
+                Alert.created_at >= today_start,
+            ).first()
+            if existing:
+                logger.debug(f"Skipping duplicate breakout alert for {item.symbol} — already alerted today")
+            else:
+                alert = Alert(
+                    alert_type="breakout" if vol_ratio >= surge_threshold else "volume_surge",
+                    symbol=item.symbol,
+                    theme_name=item.theme.name if item.theme else None,
+                    title=f"🚨 Breakout: {item.symbol}",
+                    message="\n".join(signals),
+                    severity="action",
+                )
+                db.add(alert)
+                db.commit()
+                logger.info(f"BREAKOUT: {item.symbol} — {'; '.join(signals)}")
 
         result = {
             "symbol": item.symbol,

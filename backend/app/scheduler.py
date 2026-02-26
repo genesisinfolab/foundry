@@ -75,7 +75,7 @@ def run_risk_check():
 def create_scheduler() -> BackgroundScheduler:
     scheduler = BackgroundScheduler()
 
-    # Full scan every 30 min (Mon-Fri, 9:30 AM - 4:00 PM ET)
+    # Full scan every 30 min (Mon-Fri, 9:30 AM - 3:30 PM ET)
     scheduler.add_job(
         run_scan_cycle,
         "cron",
@@ -86,7 +86,7 @@ def create_scheduler() -> BackgroundScheduler:
         id="scan_cycle",
     )
 
-    # Risk check every 5 min during market hours
+    # Risk check every 5 min during market hours (through 3:59 PM ET)
     scheduler.add_job(
         run_risk_check,
         "cron",
