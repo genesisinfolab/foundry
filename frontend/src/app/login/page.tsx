@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -25,132 +26,105 @@ export default function LoginPage() {
   }
 
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        backgroundColor: "#0a0a0f",
-        color: "#f0f0f8",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "2rem",
-        fontFamily: "Inter, sans-serif",
-      }}
+    <div
+      className="flex min-h-screen items-center justify-center px-4"
+      style={{ backgroundColor: "var(--color-nt-bg)", color: "var(--color-nt-text)" }}
     >
-      <div
+      {/* Back to home */}
+      <a
+        href="/"
+        className="fixed top-6 left-6 text-sm font-medium transition-opacity hover:opacity-70"
+        style={{ color: "var(--color-nt-secondary)" }}
+      >
+        ← Foundry
+      </a>
+
+      <Card
+        className="w-full max-w-sm"
         style={{
-          background: "rgba(255,255,255,0.03)",
-          border: "1px solid rgba(255,255,255,0.08)",
-          borderRadius: "1rem",
-          padding: "2.5rem",
-          width: "100%",
-          maxWidth: "400px",
+          backgroundColor: "var(--color-nt-surface)",
+          borderColor: "var(--color-nt-border)",
         }}
       >
-        <h1
-          style={{
-            fontSize: "1.5rem",
-            fontWeight: 700,
-            marginBottom: "0.5rem",
-            background: "linear-gradient(135deg, #818cf8 0%, #a78bfa 100%)",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-          }}
-        >
-          Foundry
-        </h1>
-        <p style={{ color: "#64748b", fontSize: "0.875rem", marginBottom: "2rem" }}>
-          Sign in to access the full dashboard
-        </p>
+        <CardHeader>
+          <CardTitle className="text-xl font-bold" style={{ color: "var(--color-nt-purple)" }}>
+            Sign in
+          </CardTitle>
+          <CardDescription style={{ color: "var(--color-nt-secondary)" }}>
+            Access the Foundry dashboard
+          </CardDescription>
+        </CardHeader>
 
-        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-          <div>
-            <label
-              style={{ display: "block", fontSize: "0.8rem", color: "#94a3b8", marginBottom: "0.4rem" }}
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium" style={{ color: "var(--color-nt-secondary)" }}>
+                Email
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                placeholder="you@example.com"
+                className="w-full rounded-lg px-3 py-2.5 text-sm outline-none transition-colors focus:ring-1"
+                style={{
+                  backgroundColor: "var(--color-nt-elevated)",
+                  border: "1px solid var(--color-nt-border-accent)",
+                  color: "var(--color-nt-text)",
+                  boxSizing: "border-box",
+                }}
+                onFocus={(e) => (e.target.style.borderColor = "var(--color-nt-purple)")}
+                onBlur={(e) => (e.target.style.borderColor = "var(--color-nt-border-accent)")}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium" style={{ color: "var(--color-nt-secondary)" }}>
+                Password
+              </label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                placeholder="••••••••"
+                className="w-full rounded-lg px-3 py-2.5 text-sm outline-none transition-colors"
+                style={{
+                  backgroundColor: "var(--color-nt-elevated)",
+                  border: "1px solid var(--color-nt-border-accent)",
+                  color: "var(--color-nt-text)",
+                  boxSizing: "border-box",
+                }}
+                onFocus={(e) => (e.target.style.borderColor = "var(--color-nt-purple)")}
+                onBlur={(e) => (e.target.style.borderColor = "var(--color-nt-border-accent)")}
+              />
+            </div>
+
+            {error && (
+              <p
+                className="rounded-lg px-3 py-2 text-sm"
+                style={{
+                  color: "var(--color-nt-red)",
+                  backgroundColor: "color-mix(in srgb, var(--color-nt-red) 12%, transparent)",
+                  border: "1px solid color-mix(in srgb, var(--color-nt-red) 25%, transparent)",
+                }}
+              >
+                {error}
+              </p>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="mt-2 w-full rounded-lg py-2.5 text-sm font-semibold transition-opacity hover:opacity-85 disabled:cursor-not-allowed disabled:opacity-60"
+              style={{ backgroundColor: "var(--color-nt-purple)", color: "#fff" }}
             >
-              Email
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              style={{
-                width: "100%",
-                background: "rgba(255,255,255,0.05)",
-                border: "1px solid rgba(255,255,255,0.1)",
-                borderRadius: "0.5rem",
-                padding: "0.625rem 0.875rem",
-                color: "#f0f0f8",
-                fontSize: "0.95rem",
-                outline: "none",
-                boxSizing: "border-box",
-              }}
-              placeholder="you@example.com"
-            />
-          </div>
-
-          <div>
-            <label
-              style={{ display: "block", fontSize: "0.8rem", color: "#94a3b8", marginBottom: "0.4rem" }}
-            >
-              Password
-            </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              style={{
-                width: "100%",
-                background: "rgba(255,255,255,0.05)",
-                border: "1px solid rgba(255,255,255,0.1)",
-                borderRadius: "0.5rem",
-                padding: "0.625rem 0.875rem",
-                color: "#f0f0f8",
-                fontSize: "0.95rem",
-                outline: "none",
-                boxSizing: "border-box",
-              }}
-              placeholder="••••••••"
-            />
-          </div>
-
-          {error && (
-            <p
-              style={{
-                color: "#ef4444",
-                fontSize: "0.85rem",
-                background: "#ef444420",
-                border: "1px solid #ef444440",
-                borderRadius: "0.5rem",
-                padding: "0.625rem",
-              }}
-            >
-              {error}
-            </p>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading}
-            style={{
-              background: "linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)",
-              color: "#fff",
-              border: "none",
-              borderRadius: "0.5rem",
-              padding: "0.75rem",
-              fontSize: "0.95rem",
-              fontWeight: 600,
-              cursor: loading ? "not-allowed" : "pointer",
-              opacity: loading ? 0.7 : 1,
-              marginTop: "0.5rem",
-            }}
-          >
-            {loading ? "Signing in…" : "Sign in"}
-          </button>
-        </form>
-      </div>
-    </main>
+              {loading ? "Signing in…" : "Sign in"}
+            </button>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
   );
 }

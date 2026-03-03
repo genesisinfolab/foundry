@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { TrendingUp, Activity, Clock, BarChart2, Layers, ArrowRight } from "lucide-react";
 
 interface PublicStats {
   total_closed_trades: number;
@@ -11,6 +14,39 @@ interface PublicStats {
   open_positions: number;
   system_status: string;
 }
+
+const statItems = (stats: PublicStats) => [
+  {
+    label: "Win Rate",
+    value: `${stats.win_rate_pct.toFixed(1)}%`,
+    positive: stats.win_rate_pct >= 50,
+    icon: TrendingUp,
+  },
+  {
+    label: "Total Return",
+    value: `${stats.total_realized_pnl_pct >= 0 ? "+" : ""}${stats.total_realized_pnl_pct.toFixed(1)}%`,
+    positive: stats.total_realized_pnl_pct >= 0,
+    icon: BarChart2,
+  },
+  {
+    label: "Avg Hold",
+    value: `${stats.avg_hold_days.toFixed(1)}d`,
+    positive: null,
+    icon: Clock,
+  },
+  {
+    label: "Closed Trades",
+    value: stats.total_closed_trades.toString(),
+    positive: null,
+    icon: Activity,
+  },
+  {
+    label: "Open Positions",
+    value: stats.open_positions.toString(),
+    positive: null,
+    icon: Layers,
+  },
+];
 
 export default function HomePage() {
   const router = useRouter();
@@ -22,210 +58,150 @@ export default function HomePage() {
   useEffect(() => {
     fetch(`${apiUrl}/api/public/stats`)
       .then((r) => r.json())
-      .then((data) => setStats(data))
+      .then(setStats)
       .catch(() => setStats(null))
       .finally(() => setLoading(false));
   }, [apiUrl]);
 
   const statusColor =
     stats?.system_status === "running"
-      ? "#22c55e"
+      ? "var(--color-nt-green)"
       : stats?.system_status === "paused"
-      ? "#f59e0b"
-      : "#6b7280";
+      ? "var(--color-nt-amber)"
+      : "var(--color-nt-muted)";
 
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        backgroundColor: "#0a0a0f",
-        color: "#f0f0f8",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "2rem",
-        fontFamily: "Inter, sans-serif",
-      }}
-    >
-      {/* Header */}
-      <div style={{ textAlign: "center", marginBottom: "3rem" }}>
-        <h1
-          style={{
-            fontSize: "2.5rem",
-            fontWeight: 700,
-            letterSpacing: "-0.02em",
-            marginBottom: "0.75rem",
-            background: "linear-gradient(135deg, #818cf8 0%, #a78bfa 100%)",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-          }}
-        >
-          Foundry
-        </h1>
-        <p style={{ color: "#94a3b8", fontSize: "1.1rem", maxWidth: "480px" }}>
-          Sector-breakout trading — systematically identified, automatically executed.
-        </p>
-      </div>
+    <div className="min-h-screen" style={{ backgroundColor: "var(--color-nt-bg)", color: "var(--color-nt-text)" }}>
 
-      {/* Stats card */}
-      <div
+      {/* Nav */}
+      <nav
+        className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 py-4"
         style={{
-          background: "rgba(255,255,255,0.03)",
-          border: "1px solid rgba(255,255,255,0.08)",
-          borderRadius: "1rem",
-          padding: "2rem",
-          width: "100%",
-          maxWidth: "560px",
-          marginBottom: "2rem",
+          background: "rgba(10,10,15,0.85)",
+          backdropFilter: "blur(12px)",
+          borderBottom: "1px solid var(--color-nt-border)",
         }}
       >
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: "1.5rem",
-          }}
+        <span className="text-lg font-bold" style={{ color: "var(--color-nt-purple)" }}>
+          Foundry
+        </span>
+        <button
+          onClick={() => router.push("/login")}
+          className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-opacity hover:opacity-80"
+          style={{ background: "var(--color-nt-purple)", color: "#fff" }}
         >
-          <h2 style={{ fontWeight: 600, fontSize: "1rem", color: "#94a3b8" }}>
-            Live Performance
-          </h2>
-          {stats && (
-            <span
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "0.4rem",
-                fontSize: "0.75rem",
-                fontWeight: 600,
-                color: statusColor,
-                background: `${statusColor}22`,
-                border: `1px solid ${statusColor}44`,
-                borderRadius: "9999px",
-                padding: "0.2rem 0.75rem",
-                textTransform: "uppercase",
-                letterSpacing: "0.05em",
-              }}
-            >
-              <span
-                style={{
-                  width: 6,
-                  height: 6,
-                  borderRadius: "50%",
-                  background: statusColor,
-                  display: "inline-block",
-                }}
-              />
-              {stats.system_status}
-            </span>
-          )}
-        </div>
+          Sign in
+        </button>
+      </nav>
 
-        {loading ? (
-          <p style={{ color: "#64748b", textAlign: "center", padding: "1rem 0" }}>
-            Loading stats…
-          </p>
-        ) : !stats ? (
-          <p style={{ color: "#64748b", textAlign: "center", padding: "1rem 0" }}>
-            Stats unavailable
-          </p>
-        ) : (
-          <div
+      {/* Hero */}
+      <main className="flex min-h-screen flex-col items-center justify-center px-4 pt-20 pb-12">
+        <div className="w-full max-w-2xl space-y-8">
+
+          {/* Title block */}
+          <div className="text-center space-y-3">
+            <h1
+              className="text-5xl font-bold tracking-tight"
+              style={{ color: "var(--color-nt-purple)" }}
+            >
+              Foundry
+            </h1>
+            <p className="text-lg" style={{ color: "var(--color-nt-secondary)" }}>
+              Sector-breakout trading — systematically identified, automatically executed.
+            </p>
+          </div>
+
+          {/* Stats card */}
+          <Card
             style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: "1.25rem",
+              backgroundColor: "var(--color-nt-surface)",
+              borderColor: "var(--color-nt-border)",
             }}
           >
-            {[
-              {
-                label: "Win Rate",
-                value: `${stats.win_rate_pct.toFixed(1)}%`,
-                positive: stats.win_rate_pct >= 50,
-              },
-              {
-                label: "Total Return",
-                value: `${stats.total_realized_pnl_pct >= 0 ? "+" : ""}${stats.total_realized_pnl_pct.toFixed(1)}%`,
-                positive: stats.total_realized_pnl_pct >= 0,
-              },
-              {
-                label: "Avg Hold",
-                value: `${stats.avg_hold_days.toFixed(1)}d`,
-                positive: null,
-              },
-              {
-                label: "Closed Trades",
-                value: stats.total_closed_trades.toString(),
-                positive: null,
-              },
-              {
-                label: "Open Positions",
-                value: stats.open_positions.toString(),
-                positive: null,
-              },
-            ].map(({ label, value, positive }) => (
-              <div
-                key={label}
-                style={{
-                  background: "rgba(255,255,255,0.03)",
-                  borderRadius: "0.625rem",
-                  padding: "1rem",
-                  border: "1px solid rgba(255,255,255,0.06)",
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: "0.75rem",
-                    color: "#64748b",
-                    marginBottom: "0.375rem",
-                    fontWeight: 500,
-                  }}
-                >
-                  {label}
-                </div>
-                <div
-                  style={{
-                    fontSize: "1.5rem",
-                    fontWeight: 700,
-                    color:
-                      positive === null
-                        ? "#f0f0f8"
-                        : positive
-                        ? "#22c55e"
-                        : "#ef4444",
-                  }}
-                >
-                  {value}
-                </div>
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-medium" style={{ color: "var(--color-nt-secondary)" }}>
+                  Live Performance
+                </CardTitle>
+                {stats && (
+                  <span
+                    className="inline-flex items-center gap-1.5 rounded-full px-3 py-0.5 text-xs font-semibold uppercase tracking-widest"
+                    style={{
+                      color: statusColor,
+                      background: `color-mix(in srgb, ${statusColor} 15%, transparent)`,
+                      border: `1px solid color-mix(in srgb, ${statusColor} 30%, transparent)`,
+                    }}
+                  >
+                    <span
+                      className="animate-pulse-glow inline-block h-1.5 w-1.5 rounded-full"
+                      style={{ background: statusColor }}
+                    />
+                    {stats.system_status}
+                  </span>
+                )}
               </div>
-            ))}
-          </div>
-        )}
-      </div>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  {[...Array(5)].map((_, i) => (
+                    <div key={i} className="skeleton h-20 rounded-lg" />
+                  ))}
+                </div>
+              ) : !stats ? (
+                <p className="py-4 text-center text-sm" style={{ color: "var(--color-nt-muted)" }}>
+                  Stats unavailable
+                </p>
+              ) : (
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  {statItems(stats).map(({ label, value, positive, icon: Icon }) => (
+                    <div
+                      key={label}
+                      className="card-glow rounded-lg p-4"
+                      style={{
+                        backgroundColor: "var(--color-nt-elevated)",
+                        border: "1px solid var(--color-nt-border)",
+                      }}
+                    >
+                      <div className="mb-2 flex items-center gap-1.5">
+                        <Icon className="h-3.5 w-3.5" style={{ color: "var(--color-nt-muted)" }} />
+                        <span className="text-xs font-medium" style={{ color: "var(--color-nt-secondary)" }}>
+                          {label}
+                        </span>
+                      </div>
+                      <span
+                        className="tabular-nums text-2xl font-bold"
+                        style={{
+                          color:
+                            positive === null
+                              ? "var(--color-nt-text)"
+                              : positive
+                              ? "var(--color-nt-green)"
+                              : "var(--color-nt-red)",
+                        }}
+                      >
+                        {value}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
-      {/* Sign in button */}
-      <button
-        onClick={() => router.push("/login")}
-        style={{
-          background: "linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)",
-          color: "#fff",
-          border: "none",
-          borderRadius: "0.625rem",
-          padding: "0.875rem 2rem",
-          fontSize: "0.95rem",
-          fontWeight: 600,
-          cursor: "pointer",
-          display: "flex",
-          alignItems: "center",
-          gap: "0.5rem",
-          transition: "opacity 0.15s",
-        }}
-        onMouseOver={(e) => (e.currentTarget.style.opacity = "0.85")}
-        onMouseOut={(e) => (e.currentTarget.style.opacity = "1")}
-      >
-        Sign in to view full dashboard  →
-      </button>
-    </main>
+          {/* CTA */}
+          <div className="flex justify-center">
+            <button
+              onClick={() => router.push("/login")}
+              className="animate-fade-in flex items-center gap-2 rounded-xl px-6 py-3.5 text-base font-semibold transition-opacity hover:opacity-85"
+              style={{ background: "var(--color-nt-purple)", color: "#fff" }}
+            >
+              Sign in to view full dashboard
+              <ArrowRight className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      </main>
+    </div>
   );
 }
