@@ -37,3 +37,4 @@ backend/backtest/results_latest.txt
 backend/=*
 tradingblueprint.md
 NEWMAN_IDENTITY.md
+start.sh
