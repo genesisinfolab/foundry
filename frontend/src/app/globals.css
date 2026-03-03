@@ -45,6 +45,21 @@
   --radius-2xl: calc(var(--radius) + 8px);
   --radius-3xl: calc(var(--radius) + 12px);
   --radius-4xl: calc(var(--radius) + 16px);
+
+  /* Newman Trading System */
+  --color-nt-bg: #0a0a0f;
+  --color-nt-surface: #111118;
+  --color-nt-elevated: #16161f;
+  --color-nt-border: #1e1e2e;
+  --color-nt-border-accent: #2a2a3e;
+  --color-nt-green: #00d4aa;
+  --color-nt-red: #ff4d6d;
+  --color-nt-blue: #4d9fff;
+  --color-nt-amber: #fbbf24;
+  --color-nt-purple: #a78bfa;
+  --color-nt-text: #f0f0f8;
+  --color-nt-secondary: #8888aa;
+  --color-nt-muted: #444466;
 }
 
 :root {
@@ -123,4 +138,78 @@
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* ── Newman Trading: Keyframes ── */
+@keyframes pulse-glow {
+  0%, 100% {
+    opacity: 1;
+    box-shadow: 0 0 4px 1px rgba(0, 212, 170, 0.5);
+  }
+  50% {
+    opacity: 0.8;
+    box-shadow: 0 0 10px 3px rgba(0, 212, 170, 0.8);
+  }
+}
+
+@keyframes pulse-ring {
+  0% { box-shadow: 0 0 0 0 rgba(0, 212, 170, 0.4); }
+  70% { box-shadow: 0 0 0 6px rgba(0, 212, 170, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(0, 212, 170, 0); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes slide-in-right {
+  from { transform: translateX(40px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Newman Trading: Utilities ── */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #111118 25%, #16161f 50%, #111118 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+.card-glow:hover {
+  box-shadow: 0 0 0 1px rgba(0, 212, 170, 0.15), 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.text-positive {
+  color: #00d4aa;
+  text-shadow: 0 0 8px rgba(0, 212, 170, 0.3);
+}
+
+.text-negative {
+  color: #ff4d6d;
+  text-shadow: 0 0 8px rgba(255, 77, 109, 0.3);
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.animate-pulse-ring {
+  animation: pulse-ring 2s ease-in-out infinite;
+}
+
+.animate-slide-in {
+  animation: slide-in-right 0.3s ease-out;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.25s ease-out;
 }

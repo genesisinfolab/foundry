@@ -1,9 +1,19 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
+let _authToken: string | null = null;
+
+export function setAuthToken(token: string | null) {
+  _authToken = token;
+}
+
 async function fetchApi<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
-    headers: { "Content-Type": "application/json", ...options?.headers },
+    headers: {
+      "Content-Type": "application/json",
+      ...(_authToken ? { Authorization: `Bearer ${_authToken}` } : {}),
+      ...options?.headers,
+    },
   });
   if (!res.ok) throw new Error(`API error: ${res.status}`);
   return res.json();
@@ -89,6 +99,9 @@ export interface PipelineResult {
 
 // API calls
 export const api = {
+  // Auth
+  setAuthToken,
+
   // Account
   getAccount: () => fetchApi<Account>("/api/account"),
 

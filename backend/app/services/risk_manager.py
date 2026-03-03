@@ -3,9 +3,17 @@ Risk Manager — Step 7 of Newman Strategy
 
 Handles:
 - Stop losses (ATR-based, floor at -2%)
-- Profit taking (scale out at 15%, 30%, 45%)
+- Uptrend line exit (primary profit exit — mirrors the entry signal)
+- Profit tiers (fallback when uptrend line hasn't formed yet)
 - Theme exposure limits
 - Position monitoring
+
+Exit priority:
+  1. ATR stop      — always active, floors the loss
+  2. Uptrend break — primary exit; drawn through swing lows since entry,
+                     fires when today's close is > 1 % below the line
+  3. Profit tiers  — fallback only when < 2 troughs exist (< ~10 bars
+                     post-entry); prevents indefinite holding with no signal
 """
 import logging
 import numpy as np
@@ -19,8 +27,66 @@ from app.models.position import Position, PositionAction, PositionStatus
 from app.models.alert import Alert
 from app.integrations.alpaca_client import AlpacaClient
 from app.services.notifier import notify_trade
+from app.services.audit_log import write_pretrade
+from app.services.reasoning_log import write_reasoning
+from app.services import agent_tracker
 
 logger = logging.getLogger(__name__)
+
+
+def detect_uptrend_break(bars: list[dict]) -> tuple[bool, float]:
+    """
+    Return (broke_below, support_level).
+
+    Draws a trendline through the swing lows of `bars` (the post-entry
+    window) and checks if today's close is > 1 % below it.
+
+    This is the mirror of breakout_scanner.detect_resistance_break():
+      Entry  — close breaks ABOVE the resistance line drawn through highs.
+      Exit   — close breaks BELOW the support line drawn through lows.
+
+    Returns (False, 0.0) when fewer than 2 troughs are detectable, which
+    signals that the trendline hasn't formed yet (caller falls back to tiers).
+    """
+    if len(bars) < 6:
+        return False, 0.0
+
+    # Use all bars except today to build the trendline, check against today
+    window = bars[:-1]
+    today  = bars[-1]
+
+    lows = np.array([b["low"] for b in window])
+    neighborhood = max(2, min(5, len(lows) // 10))
+
+    troughs = [
+        idx for idx in range(neighborhood, len(lows) - neighborhood)
+        if lows[idx] == min(lows[idx - neighborhood: idx + neighborhood + 1])
+    ]
+
+    if len(troughs) < 2:
+        return False, 0.0
+
+    recent = troughs[-min(6, len(troughs)):]
+    t_x = np.array(recent, dtype=float)
+    t_y = lows[recent]
+
+    slope, intercept = np.polyfit(t_x, t_y, 1)
+    support = slope * len(window) + intercept
+
+    broke_below = today["close"] < support * 0.99   # 1 % clearance
+    return broke_below, max(support, 0.0)
+
+
+def _parse_bar_ts(bar: dict) -> datetime:
+    """Parse Alpaca bar timestamp to UTC-aware datetime."""
+    ts = bar.get("timestamp", "")
+    if not ts:
+        return datetime.min.replace(tzinfo=timezone.utc)
+    ts = ts.replace("Z", "+00:00")
+    try:
+        return datetime.fromisoformat(ts)
+    except ValueError:
+        return datetime.min.replace(tzinfo=timezone.utc)
 
 
 def calculate_atr(bars: list[dict], period: int = 14) -> float:
@@ -53,8 +119,10 @@ class RiskManager:
         positions = db.query(Position).filter(Position.status == PositionStatus.OPEN).all()
         actions_taken = []
 
+        agent_tracker.spawn("risk_manager", f"Checking {len(positions)} open positions")
         for pos in positions:
             try:
+                agent_tracker.update("risk_manager", f"Checking {pos.symbol}")
                 result = self._check_position(pos, db)
                 if result:
                     actions_taken.append(result)
@@ -62,6 +130,8 @@ class RiskManager:
                 logger.warning(f"Risk check failed for {pos.symbol}: {e}")
 
         db.commit()
+        agent_tracker.complete("risk_manager",
+            f"Done — {len(actions_taken)} action(s) taken on {len(positions)} position(s)")
         return actions_taken
 
     def _check_position(self, pos: Position, db: Session) -> Optional[dict]:
@@ -107,10 +177,42 @@ class RiskManager:
         elif pnl_pct <= self.settings.stop_loss_pct:
             return self._execute_stop_loss(pos, current_price, pnl_pct, db)
 
-        # ── Profit Taking ────────────────────────────────
+        # ── Uptrend line exit (primary profit exit) ──────────────────────────
+        # Fetch bars since entry to build the rising support trendline.
+        # Only fires when in profit — below that the ATR stop handles it.
+        if pnl_pct > 0:
+            try:
+                all_bars = self.alpaca.get_bars(pos.symbol, days=90)
+                entry_dt = pos.opened_at
+                if entry_dt and entry_dt.tzinfo is None:
+                    entry_dt = entry_dt.replace(tzinfo=timezone.utc)
+
+                post_entry = (
+                    [b for b in all_bars if _parse_bar_ts(b) >= entry_dt]
+                    if entry_dt else all_bars[-30:]
+                )
+
+                if len(post_entry) >= 6:
+                    broke, support = detect_uptrend_break(post_entry)
+                    if broke:
+                        return self._execute_trendline_exit(
+                            pos, current_price, pnl_pct, support, db
+                        )
+                    if support > 0:
+                        # Trendline formed and intact — hold, wait for break
+                        logger.debug(
+                            f"{pos.symbol}: uptrend support ${support:.2f} intact | "
+                            f"price ${current_price:.2f} | P&L {pnl_pct:.2%}"
+                        )
+                        return None
+            except Exception as e:
+                logger.warning(f"Uptrend check failed for {pos.symbol}: {e}")
+
+        # ── Profit tiers (fallback when trendline hasn't formed) ──────────────
+        # Fires only when the uptrend trendline returned no signal — i.e.
+        # the position is young and < 2 troughs are detectable.
         for i, target in enumerate(self.settings.profit_take_tiers):
             if pnl_pct >= target:
-                # Check if we already took profit at this tier
                 existing_takes = db.query(PositionAction).filter(
                     PositionAction.position_id == pos.id,
                     PositionAction.action_type == "take_profit",
@@ -120,9 +222,130 @@ class RiskManager:
 
         return None
 
+    def _execute_trendline_exit(
+        self,
+        pos: Position,
+        price: float,
+        pnl_pct: float,
+        support: float,
+        db: Session,
+    ) -> dict:
+        """Close the full position when price breaks below the rising support trendline."""
+        logger.info(
+            f"TRENDLINE EXIT: {pos.symbol} @ ${price:.2f} broke below support "
+            f"${support:.2f} | P&L {pnl_pct:.2%}"
+        )
+
+        write_reasoning(
+            agent="risk_manager",
+            event="trendline_exit",
+            symbol=pos.symbol,
+            action="exit",
+            corners={"chart": True, "structure": False, "sector": True, "catalyst": False},
+            conviction=2,
+            notes=(
+                f"Uptrend line broken: ${price:.2f} < support ${support:.2f} "
+                f"({(price / support - 1) * 100:.1f}% below) | P&L {pnl_pct:.2%}"
+            ),
+        )
+
+        write_pretrade(
+            event="trendline_exit",
+            symbol=pos.symbol,
+            side="sell",
+            qty=pos.qty,
+            price=price,
+            pnl_pct=pnl_pct,
+            paper=self.settings.alpaca_paper,
+            extra={
+                "support_level": round(support, 4),
+                "entry_price":   pos.avg_entry_price,
+                "position_age_days": (
+                    (datetime.now(timezone.utc) - pos.opened_at).days
+                    if pos.opened_at else None
+                ),
+            },
+        )
+
+        try:
+            order = self.alpaca.close_position(pos.symbol)
+        except Exception as e:
+            logger.error(f"Trendline exit order failed for {pos.symbol}: {e}")
+            return {"symbol": pos.symbol, "action": "trendline_exit_failed", "error": str(e)}
+
+        realized = (price - pos.avg_entry_price) * pos.qty
+        pos.status       = PositionStatus.CLOSED
+        pos.realized_pnl = realized
+        pos.closed_at    = datetime.now(timezone.utc)
+
+        action = PositionAction(
+            position=pos,
+            action_type="trendline_exit",
+            qty=pos.qty,
+            price=price,
+            reason=(
+                f"Uptrend line broken @ ${price:.2f} "
+                f"(support ${support:.2f}) | P&L {pnl_pct:.2%}"
+            ),
+            alpaca_order_id=order.get("order_id"),
+        )
+        db.add(action)
+
+        alert = Alert(
+            alert_type="trendline_exit",
+            symbol=pos.symbol,
+            title=f"📉 Trendline Exit: {pos.symbol}",
+            message=(
+                f"Closed {pos.qty} shares @ ${price:.2f}. "
+                f"Support broken (${support:.2f}). "
+                f"P&L: {pnl_pct:.2%} (${realized:.2f})"
+            ),
+            severity="info" if pnl_pct > 0 else "warning",
+        )
+        db.add(alert)
+
+        notify_trade(
+            "TRENDLINE_EXIT",
+            pos.symbol,
+            f"Uptrend broken @ ${price:.2f} (support ${support:.2f}) | "
+            f"P&L {pnl_pct:.2%} (${realized:.2f})",
+        )
+        return {
+            "symbol":   pos.symbol,
+            "action":   "trendline_exit",
+            "support":  round(support, 4),
+            "pnl_pct":  pnl_pct,
+            "pnl_usd":  realized,
+        }
+
     def _execute_stop_loss(self, pos: Position, price: float, pnl_pct: float, db: Session) -> dict:
         """Execute a stop-loss exit"""
         logger.info(f"STOP LOSS: {pos.symbol} at {pnl_pct:.2%}")
+
+        write_reasoning(
+            agent="risk_manager",
+            event="stop_loss",
+            symbol=pos.symbol,
+            action="exit",
+            corners={"chart": False, "structure": False, "sector": True, "catalyst": False},
+            conviction=0,
+            notes=f"Stop triggered @ ${price:.2f} | Entry ${pos.avg_entry_price:.2f} | P&L {pnl_pct:.2%}",
+        )
+
+        write_pretrade(
+            event="stop_loss",
+            symbol=pos.symbol,
+            side="sell",
+            qty=pos.qty,
+            price=price,
+            stop_price=pos.stop_loss_price,
+            pnl_pct=pnl_pct,
+            paper=self.settings.alpaca_paper,
+            extra={"entry_price": pos.avg_entry_price, "position_age_days": (
+                (datetime.now(timezone.utc) - pos.created_at).days
+                if pos.created_at else None
+            )},
+        )
 
         try:
             order = self.alpaca.close_position(pos.symbol)
@@ -158,12 +381,42 @@ class RiskManager:
 
     def _execute_profit_take(self, pos: Position, price: float, pnl_pct: float, tier: int, db: Session) -> dict:
         """Scale out a portion at profit target"""
-        # Sell 33% of position at each tier
-        sell_qty = max(1, int(pos.qty * 0.33))
+        # Final tier closes the full remaining position; earlier tiers sell 33%
+        if tier >= len(self.settings.profit_take_tiers):
+            sell_qty = pos.qty
+        else:
+            sell_qty = max(1, int(pos.qty * 0.33))
         if sell_qty >= pos.qty:
             sell_qty = pos.qty  # Close entire position
 
         logger.info(f"PROFIT TAKE T{tier}: {pos.symbol} selling {sell_qty}/{pos.qty} at {pnl_pct:.2%}")
+
+        write_reasoning(
+            agent="risk_manager",
+            event="profit_take",
+            symbol=pos.symbol,
+            action="exit",
+            corners={"chart": True, "structure": True, "sector": True, "catalyst": False},
+            conviction=tier,
+            notes=f"Tier {tier} target reached @ {pnl_pct:.1%} | Selling {sell_qty}/{pos.qty} shares @ ${price:.2f}",
+        )
+
+        write_pretrade(
+            event="profit_take",
+            symbol=pos.symbol,
+            side="sell",
+            qty=sell_qty,
+            price=price,
+            pnl_pct=pnl_pct,
+            paper=self.settings.alpaca_paper,
+            extra={
+                "tier": tier,
+                "tier_target_pct": self.settings.profit_take_tiers[tier - 1] * 100,
+                "entry_price": pos.avg_entry_price,
+                "shares_remaining_after": pos.qty - sell_qty,
+                "realized_usd": round((price - pos.avg_entry_price) * sell_qty, 2),
+            },
+        )
 
         try:
             order = self.alpaca.place_market_order(pos.symbol, sell_qty, "sell")

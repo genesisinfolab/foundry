@@ -2,18 +2,31 @@
 import subprocess
 import logging
 
+from app.config import get_settings
+
 logger = logging.getLogger(__name__)
 
-WHATSAPP_NUMBER = "+18136193622"
+
+def _to_jid(number: str) -> str:
+    """Convert +1XXXXXXXXXX phone number to wacli JID format (no + prefix, @s.whatsapp.net)."""
+    clean = number.lstrip("+")
+    if "@" not in clean:
+        clean = f"{clean}@s.whatsapp.net"
+    return clean
 
 
 def _send(msg: str):
     """Dispatch a message to WhatsApp with openclaw fallback."""
-    # Primary: wacli
+    number = get_settings().whatsapp_number
+    if not number:
+        logger.warning("WHATSAPP_NUMBER not configured — notification suppressed")
+        return
+    jid = _to_jid(number)
+    # Primary: wacli (use JID format — plain phone number causes usync lookup timeout)
     try:
         result = subprocess.run(
-            ["wacli", "send", "text", "--to", WHATSAPP_NUMBER, "--message", msg],
-            capture_output=True, text=True, timeout=10
+            ["wacli", "send", "text", "--to", jid, "--message", msg],
+            capture_output=True, text=True, timeout=30
         )
         if result.returncode == 0:
             logger.info(f"WhatsApp sent: {msg[:80]}...")

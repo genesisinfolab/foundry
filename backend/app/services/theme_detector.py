@@ -71,6 +71,8 @@ class ThemeDetector:
 
     def scan_all(self, db: Session) -> list[Theme]:
         """Run full theme detection scan across all sources"""
+        from app.services import agent_tracker
+        agent_tracker.spawn("theme_detector", "Scanning news, social, ETFs...")
         logger.info("Starting theme detection scan...")
         theme_scores: dict[str, dict] = defaultdict(lambda: {
             "news_score": 0.0, "social_score": 0.0, "etf_score": 0.0,
@@ -78,17 +80,22 @@ class ThemeDetector:
         })
 
         # 1. Scan news for catalyst keywords
+        agent_tracker.update("theme_detector", "Scanning news sources (Finnhub + Perigon)")
         self._scan_news(theme_scores)
 
         # 2. Scan social media
+        agent_tracker.update("theme_detector", "Scanning social media (Reddit + Twitter)")
         self._scan_social(theme_scores)
 
         # 3. Scan ETF performance for sector rotation
+        agent_tracker.update("theme_detector", "Scanning ETF sector rotation signals")
         self._scan_etfs(theme_scores)
 
         # 4. Score and persist themes
+        agent_tracker.update("theme_detector", "Scoring and persisting themes")
         themes = self._score_and_persist(theme_scores, db)
 
+        agent_tracker.complete("theme_detector", f"Found {len(themes)} themes")
         logger.info(f"Theme scan complete. Found {len(themes)} themes.")
         return themes
 
@@ -134,11 +141,17 @@ class ThemeDetector:
                     )
                     if theme_name:
                         scores[theme_name]["news_score"] += 0.2
+                        # Perigon returns sentiment as a dict
+                        # {"positive": float, "negative": float, "neutral": float}
+                        # Flatten to a single signed float: positive − negative
+                        raw_sent = article.get("sentiment", 0)
+                        if isinstance(raw_sent, dict):
+                            raw_sent = raw_sent.get("positive", 0) - raw_sent.get("negative", 0)
                         scores[theme_name]["sources"].append({
                             "type": "news", "source": "perigon",
                             "headline": article.get("title"),
                             "url": article.get("url"),
-                            "sentiment": article.get("sentiment", 0),
+                            "sentiment": float(raw_sent),
                         })
             except Exception as e:
                 logger.warning(f"Perigon scan failed for '{keyword}': {e}")
@@ -305,13 +318,16 @@ class ThemeDetector:
 
             # Add sources
             for src in data["sources"][:10]:  # Limit stored sources
+                raw_sent = src.get("sentiment", 0)
+                if isinstance(raw_sent, dict):  # guard: Perigon nested sentiment object
+                    raw_sent = raw_sent.get("positive", 0) - raw_sent.get("negative", 0)
                 source = ThemeSource(
                     theme=theme,
                     source_type=src["type"],
                     source_name=src["source"],
                     headline=src.get("headline"),
                     url=src.get("url"),
-                    sentiment=src.get("sentiment", 0),
+                    sentiment=float(raw_sent),
                 )
                 db.add(source)
 

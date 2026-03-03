@@ -91,6 +91,33 @@ class AlpacaClient:
             for bar in bars[symbol]
         ]
 
+    def get_bars_batch(self, symbols: list[str], days: int = 60, timeframe: TimeFrame = TimeFrame.Day) -> dict[str, list[dict]]:
+        """Fetch bars for multiple symbols in a single API call (much faster than looping)."""
+        if not symbols:
+            return {}
+        end = datetime.now(timezone.utc)
+        start = end - timedelta(days=days)
+        req = StockBarsRequest(symbol_or_symbols=symbols, timeframe=timeframe, start=start, end=end)
+        all_bars = self.data.get_stock_bars(req)
+        result = {}
+        for sym in symbols:
+            try:
+                result[sym] = [
+                    {
+                        "timestamp": bar.timestamp.isoformat(),
+                        "open": float(bar.open),
+                        "high": float(bar.high),
+                        "low": float(bar.low),
+                        "close": float(bar.close),
+                        "volume": int(bar.volume),
+                        "vwap": float(bar.vwap) if bar.vwap else None,
+                    }
+                    for bar in all_bars[sym]
+                ]
+            except (KeyError, Exception):
+                result[sym] = []
+        return result
+
     def get_latest_quote(self, symbol: str) -> dict:
         req = StockLatestQuoteRequest(symbol_or_symbols=symbol)
         quotes = self.data.get_stock_latest_quote(req)
@@ -102,6 +129,38 @@ class AlpacaClient:
             "bid_size": int(q.bid_size),
             "ask_size": int(q.ask_size),
         }
+
+    def get_snapshots_batch(self, symbols: list[str]) -> dict[str, dict]:
+        """
+        Fetch latest snapshot for multiple symbols in one call.
+        Returns {symbol: {price, prev_close, change_pct, change_usd}}.
+        """
+        if not symbols:
+            return {}
+        req = StockSnapshotRequest(symbol_or_symbols=symbols)
+        raw = self.data.get_stock_snapshot(req)
+        result = {}
+        for sym in symbols:
+            try:
+                snap = raw[sym]
+                current = (
+                    float(snap.latest_trade.price)
+                    if snap.latest_trade
+                    else (float(snap.daily_bar.close) if snap.daily_bar else 0.0)
+                )
+                prev = float(snap.previous_daily_bar.close) if snap.previous_daily_bar else current
+                change_pct = ((current - prev) / prev * 100) if prev > 0 else 0.0
+                result[sym] = {
+                    "symbol":     sym,
+                    "price":      round(current, 2),
+                    "prev_close": round(prev, 2),
+                    "change_pct": round(change_pct, 2),
+                    "change_usd": round(current - prev, 2),
+                }
+            except (KeyError, Exception):
+                result[sym] = {"symbol": sym, "price": 0.0, "prev_close": 0.0,
+                               "change_pct": 0.0, "change_usd": 0.0}
+        return result
 
     def get_snapshot(self, symbol: str) -> dict:
         req = StockSnapshotRequest(symbol_or_symbols=symbol)

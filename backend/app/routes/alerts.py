@@ -3,12 +3,13 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.alert import Alert
+from app.services.auth import require_supabase_token
 
 router = APIRouter(prefix="/api/alerts", tags=["alerts"])
 
 
 @router.get("/")
-def list_alerts(limit: int = 50, unread_only: bool = False, db: Session = Depends(get_db)):
+def list_alerts(limit: int = 50, unread_only: bool = False, db: Session = Depends(get_db), _token=Depends(require_supabase_token)):
     q = db.query(Alert)
     if unread_only:
         q = q.filter(Alert.acknowledged == False)
@@ -26,7 +27,7 @@ def list_alerts(limit: int = 50, unread_only: bool = False, db: Session = Depend
 
 
 @router.post("/{alert_id}/ack")
-def acknowledge_alert(alert_id: int, db: Session = Depends(get_db)):
+def acknowledge_alert(alert_id: int, db: Session = Depends(get_db), _token=Depends(require_supabase_token)):
     alert = db.query(Alert).filter(Alert.id == alert_id).first()
     if not alert:
         return {"error": "Alert not found"}
@@ -36,7 +37,7 @@ def acknowledge_alert(alert_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/ack-all")
-def acknowledge_all(db: Session = Depends(get_db)):
+def acknowledge_all(db: Session = Depends(get_db), _token=Depends(require_supabase_token)):
     db.query(Alert).filter(Alert.acknowledged == False).update({"acknowledged": True})
     db.commit()
     return {"status": "ok"}

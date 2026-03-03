@@ -48,6 +48,7 @@ class Position(Base):
 
     # Relationships
     actions = relationship("PositionAction", back_populates="position", cascade="all, delete-orphan")
+    theme   = relationship("Theme", foreign_keys=[theme_id], lazy="joined")
 
     def __repr__(self):
         return f"<Position {self.symbol} qty={self.qty} pnl={self.unrealized_pnl_pct:.1%}>"

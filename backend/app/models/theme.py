@@ -47,7 +47,11 @@ class Theme(Base):
 
     # Relationships
     sources = relationship("ThemeSource", back_populates="theme", cascade="all, delete-orphan")
-    watchlist_items = relationship("WatchlistItem", back_populates="theme")
+    watchlist_items = relationship(
+        "WatchlistItem",
+        secondary="watchlist_item_themes",
+        back_populates="themes",
+    )
 
     def __repr__(self):
         return f"<Theme {self.name} score={self.score:.2f} status={self.status}>"

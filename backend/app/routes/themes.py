@@ -4,12 +4,13 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.theme import Theme
 from app.services.theme_detector import ThemeDetector
+from app.services.auth import require_supabase_token
 
 router = APIRouter(prefix="/api/themes", tags=["themes"])
 
 
 @router.get("/")
-def list_themes(db: Session = Depends(get_db)):
+def list_themes(db: Session = Depends(get_db), _token=Depends(require_supabase_token)):
     themes = db.query(Theme).order_by(Theme.score.desc()).all()
     return [
         {
@@ -25,7 +26,7 @@ def list_themes(db: Session = Depends(get_db)):
 
 
 @router.get("/{theme_id}")
-def get_theme(theme_id: int, db: Session = Depends(get_db)):
+def get_theme(theme_id: int, db: Session = Depends(get_db), _token=Depends(require_supabase_token)):
     theme = db.query(Theme).filter(Theme.id == theme_id).first()
     if not theme:
         return {"error": "Theme not found"}

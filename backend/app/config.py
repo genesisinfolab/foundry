@@ -35,6 +35,22 @@ class Settings(BaseSettings):
     # Seeking Alpha (RapidAPI)
     seeking_alpha_token: str = ""
 
+    # Anthropic (Claude gate)
+    anthropic_api_key: str = ""
+
+    # Optional API key for mutating endpoints (override, pipeline).
+    # Leave empty to keep unauthenticated (dev mode).  Set in .env for production.
+    override_api_key: str = ""
+
+    # Supabase
+    supabase_url: str = ""
+    supabase_anon_key: str = ""
+    supabase_jwks_url: str = ""  # Auth → Settings → JWKS URL  (ES256 — preferred)
+    supabase_jwt_secret: str = ""  # Legacy HS256 fallback — leave blank if using JWKS
+
+    # Notifications
+    whatsapp_number: str = ""
+
     # App
     log_level: str = "INFO"
     database_url: str = "sqlite:///./newman_trading.db"
@@ -50,9 +66,10 @@ class Settings(BaseSettings):
     starter_position_usd: float = 2500.0
     max_single_position_pct: float = 0.35
     max_theme_exposure_pct: float = 0.60
-    stop_loss_pct: float = -0.005
+    stop_loss_pct: float = -0.05
     profit_take_tiers: list[float] = [0.15, 0.30, 0.45]
     max_pyramid_levels: int = 4
+    stopped_out_cooldown_hours: float = 24.0  # Hours to block re-entry after a stop-out
 
     model_config = {"env_file": os.path.join(os.path.dirname(__file__), "../../.env")}
 

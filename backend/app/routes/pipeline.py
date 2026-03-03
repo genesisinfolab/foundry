@@ -10,12 +10,29 @@ from app.services.structure_checker import StructureChecker
 from app.services.breakout_scanner import BreakoutScanner
 from app.services.trade_executor import TradeExecutor
 from app.services.risk_manager import RiskManager
+from app.services.auth import require_api_key
 
 router = APIRouter(prefix="/api/pipeline", tags=["pipeline"])
 
 
+@router.post("/run-scanner")
+def run_scanner(db: Session = Depends(get_db), _auth=Depends(require_api_key)):
+    """Run breakout scanner only."""
+    scanner   = BreakoutScanner()
+    breakouts = scanner.scan_all(db)
+    return {"step": "breakout_scan", "breakouts": len(breakouts), "signals": breakouts}
+
+
+@router.post("/run-risk")
+def run_risk(db: Session = Depends(get_db), _auth=Depends(require_api_key)):
+    """Run risk manager check on all open positions."""
+    rm      = RiskManager()
+    actions = rm.check_all_positions(db)
+    return {"step": "risk_management", "actions": len(actions), "detail": actions}
+
+
 @router.post("/run-full")
-def run_full_pipeline(db: Session = Depends(get_db)):
+def run_full_pipeline(db: Session = Depends(get_db), _auth=Depends(require_api_key)):
     """Execute the complete Newman strategy pipeline"""
     results = {"steps": []}
 

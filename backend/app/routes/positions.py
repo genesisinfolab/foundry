@@ -5,12 +5,13 @@ from app.database import get_db
 from app.models.position import Position, PositionStatus
 from app.services.risk_manager import RiskManager
 from app.services.trade_executor import TradeExecutor
+from app.services.auth import require_supabase_token
 
 router = APIRouter(prefix="/api/positions", tags=["positions"])
 
 
 @router.get("/")
-def list_positions(status: str = "open", db: Session = Depends(get_db)):
+def list_positions(status: str = "open", db: Session = Depends(get_db), _token=Depends(require_supabase_token)):
     q = db.query(Position)
     if status == "open":
         q = q.filter(Position.status == PositionStatus.OPEN)
@@ -39,7 +40,7 @@ def list_positions(status: str = "open", db: Session = Depends(get_db)):
 
 
 @router.get("/summary")
-def portfolio_summary(db: Session = Depends(get_db)):
+def portfolio_summary(db: Session = Depends(get_db), _token=Depends(require_supabase_token)):
     rm = RiskManager()
     return rm.get_portfolio_summary(db)
 

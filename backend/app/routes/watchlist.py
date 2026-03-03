@@ -6,12 +6,13 @@ from app.models.watchlist import WatchlistItem
 from app.models.theme import Theme
 from app.services.watchlist_builder import WatchlistBuilder
 from app.services.structure_checker import StructureChecker
+from app.services.auth import require_supabase_token
 
 router = APIRouter(prefix="/api/watchlist", tags=["watchlist"])
 
 
 @router.get("/")
-def list_watchlist(active_only: bool = True, clean_only: bool = False, db: Session = Depends(get_db)):
+def list_watchlist(active_only: bool = True, clean_only: bool = False, db: Session = Depends(get_db), _token=Depends(require_supabase_token)):
     q = db.query(WatchlistItem)
     if active_only:
         q = q.filter(WatchlistItem.active == True)

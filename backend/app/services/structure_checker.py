@@ -28,10 +28,13 @@ class StructureChecker:
 
     def check_all(self, db: Session) -> list[WatchlistItem]:
         """Check share structure for all active watchlist items"""
+        from app.services import agent_tracker
         items = db.query(WatchlistItem).filter(WatchlistItem.active == True).all()
+        agent_tracker.spawn("structure_checker", f"Checking {len(items)} watchlist items")
         clean_items = []
 
-        for item in items:
+        for i, item in enumerate(items):
+            agent_tracker.update("structure_checker", f"Checking {item.symbol} ({i+1}/{len(items)})")
             passed, notes = self._check_structure(item)
             item.structure_clean = passed
             item.structure_notes = notes
@@ -44,6 +47,7 @@ class StructureChecker:
                 logger.debug(f"{item.symbol} failed structure check: {notes}")
 
         db.commit()
+        agent_tracker.complete("structure_checker", f"{len(clean_items)}/{len(items)} passed structure check")
         logger.info(f"Structure check: {len(clean_items)}/{len(items)} passed")
         return clean_items
 

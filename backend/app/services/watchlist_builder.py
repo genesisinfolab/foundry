@@ -35,14 +35,14 @@ SECTOR_STOCKS: dict[str, list[str]] = {
     "biotech": ["MRNA", "BNTX", "NVAX", "CRSP", "BEAM", "EDIT", "NTLA", "ALNY", "RXRX", "SGEN"],
     "genomics": ["CRSP", "BEAM", "EDIT", "NTLA", "RXRX", "PACB", "ILMN", "CDNA", "FATE", "BLUE"],
     "semiconductors": ["NVDA", "AMD", "SMCI", "MRVL", "ON", "WOLF", "AEHR", "CEVA", "SLAB", "DIOD"],
-    "ev": ["RIVN", "LCID", "FSR", "SOLO", "WKHS", "RIDE", "GOEV", "NKLA", "ZEV", "BLNK"],
+    "ev": ["RIVN", "LCID", "WKHS", "ZEV", "BLNK"],
     "ev_charging": ["BLNK", "CHPT", "EVGO", "VLTA", "SBE", "SPNV", "CLII", "AMPE", "PTRA"],
     "ai_software": ["SOUN", "BBAI", "AITX", "GFAI", "CXAI", "TSSI", "INPX", "PERI", "OTRK", "BTBT"],
     "artificial_intelligence": ["SOUN", "BBAI", "AITX", "GFAI", "PLTR", "AI", "BBAI", "TSSI", "INPX"],
     "uranium": ["UEC", "UUUU", "DNN", "CCJ", "NXE", "URG", "BQSSF", "PALAF", "HPNNF", "LTBR"],
     "nuclear": ["UEC", "UUUU", "DNN", "CCJ", "NXE", "LTBR", "OKLO", "NNE", "SMR", "BWXT"],
     "robotics": ["RBOT", "ISRG", "IRBT", "LIDR", "OUST", "VNET", "ACMR", "MVIS", "AEYE"],
-    "space": ["RKLB", "SPCE", "ASTS", "LUNR", "MNTS", "PL", "SATL", "KTOS", "AJRD"],
+    "space": ["RKLB", "ASTS", "LUNR", "MNTS", "PL", "SATL", "KTOS", "AJRD"],
     "cybersecurity": ["CRWD", "S", "QLYS", "VRNS", "DDOG", "ZS", "TENB", "RDWR", "CYBE"],
     "defense": ["KTOS", "AVAV", "CACI", "LDOS", "BWXT", "DRS", "HWM", "TDG", "GD"],
     "crypto": ["MSTR", "COIN", "MARA", "RIOT", "CLSK", "BTBT", "CIFR", "IREN", "HUT"],
@@ -108,6 +108,8 @@ class WatchlistBuilder:
 
     def build_for_theme(self, theme: Theme, db: Session) -> list[WatchlistItem]:
         """Build watchlist for a detected theme"""
+        from app.services import agent_tracker
+        agent_tracker.spawn("watchlist_builder", f"Building watchlist for {theme.name}")
         logger.info(f"Building watchlist for theme: {theme.name}")
 
         # 1. Gather candidate symbols
@@ -118,6 +120,7 @@ class WatchlistBuilder:
         items = []
         for symbol in candidates[:30]:  # Cap at 30 per theme
             try:
+                agent_tracker.update("watchlist_builder", f"Processing {symbol} ({theme.name})")
                 item = self._create_or_update_item(symbol, theme, db)
                 if item:
                     items.append(item)
@@ -125,6 +128,7 @@ class WatchlistBuilder:
                 logger.warning(f"Failed to process {symbol}: {e}")
 
         db.commit()
+        agent_tracker.complete("watchlist_builder", f"{theme.name}: {len(items)} items added")
         logger.info(f"Watchlist for {theme.name}: {len(items)} items")
         return items
 
@@ -189,14 +193,21 @@ class WatchlistBuilder:
         return list(symbols)
 
     def _create_or_update_item(self, symbol: str, theme: Theme, db: Session) -> Optional[WatchlistItem]:
-        """Create or update a watchlist item with fundamentals"""
+        """Create or update a watchlist item with fundamentals.
+
+        One row per symbol (not per symbol+theme).  Theme associations are stored
+        in the watchlist_item_themes join table so a symbol can belong to many themes.
+        """
         existing = db.query(WatchlistItem).filter(
             WatchlistItem.symbol == symbol,
-            WatchlistItem.theme_id == theme.id,
         ).first()
 
-        if existing and existing.active:
-            return existing  # Already tracked
+        if existing:
+            # Associate with this theme if not already linked
+            if theme not in existing.themes:
+                existing.themes.append(theme)
+            if existing.active:
+                return existing  # Already tracked; theme association added above
 
         # Get fundamentals from Finnhub
         try:
@@ -219,7 +230,7 @@ class WatchlistBuilder:
             latest_price = None
             recent_volume = None
 
-        item = existing or WatchlistItem(symbol=symbol, theme_id=theme.id)
+        item = existing or WatchlistItem(symbol=symbol)
         item.company_name = profile.get("name")
         item.market_cap = profile.get("marketCapitalization", 0) * 1_000_000 if profile.get("marketCapitalization") else None
         item.float_shares = profile.get("shareOutstanding", 0) * 1_000_000 if profile.get("shareOutstanding") else None
@@ -230,6 +241,7 @@ class WatchlistBuilder:
         item.updated_at = datetime.now(timezone.utc)
 
         if not existing:
+            item.themes.append(theme)
             db.add(item)
 
         return item

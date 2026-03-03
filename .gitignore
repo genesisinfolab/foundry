@@ -1,7 +1,39 @@
+# Secrets
 .env
+.env.local
+.env*.local
+
+# Python
 __pycache__/
 *.pyc
+*.pyo
 .venv/
+*.egg-info/
+
+# Database
+*.db
+*.db-shm
+*.db-wal
+
+# Logs
+logs/
+*.log
+
+# Node / Next.js
 node_modules/
 .next/
-*.db
+out/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Backtest outputs (generated files)
+backend/backtest/trades.csv
+backend/backtest/results.json
+backend/backtest/results_latest.txt
+
+# Stray files
+backend/=*
+tradingblueprint.md
+NEWMAN_IDENTITY.md
