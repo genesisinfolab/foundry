@@ -64,10 +64,10 @@ function fmtPct(n: number | null | undefined): string {
 
 // ── Status dot colours ───────────────────────────────────────────────────────
 const STATUS_DOT: Record<string, string> = {
-  hot: "#ff4d6d",
-  emerging: "#fbbf24",
+  hot: "#FF3B30",
+  emerging: "#FF9500",
   cooling: "#4d9fff",
-  dead: "#444466",
+  dead: "#6E6E73",
 };
 
 // ── Reusable card wrapper ────────────────────────────────────────────────────
@@ -81,7 +81,7 @@ function Panel({
   return (
     <div
       className={`rounded-xl ${className}`}
-      style={{ backgroundColor: "#111118", border: "1px solid #1e1e2e" }}
+      style={{ backgroundColor: "#FFFFFF", border: "1px solid #D2D2D7" }}
     >
       {children}
     </div>
@@ -92,8 +92,8 @@ function Panel({
 function EmptyState({ message }: { message: string }) {
   return (
     <div className="py-16 text-center">
-      <Activity size={28} style={{ color: "#1e1e2e", margin: "0 auto 10px" }} />
-      <p style={{ color: "#444466", fontSize: "13px" }}>{message}</p>
+      <Activity size={28} style={{ color: "#D2D2D7", margin: "0 auto 10px" }} />
+      <p style={{ color: "#6E6E73", fontSize: "13px" }}>{message}</p>
     </div>
   );
 }
@@ -103,7 +103,7 @@ function TH({ children }: { children?: React.ReactNode }) {
   return (
     <th
       className="text-left px-4 py-3 text-[10px] font-semibold uppercase tracking-wider"
-      style={{ color: "#444466", borderBottom: "1px solid #1e1e2e" }}
+      style={{ color: "#6E6E73", borderBottom: "1px solid #1e1e2e" }}
     >
       {children}
     </th>
@@ -153,6 +153,12 @@ export default function Dashboard() {
 
   // Attach Supabase access token — gates the data fetch until session is confirmed
   useEffect(() => {
+    // In local dev, skip auth and load immediately
+    if (process.env.NODE_ENV === "development") {
+      api.setAuthToken(null);
+      setSessionReady(true);
+      return;
+    }
     supabase.auth.getSession().then(({ data: { session } }) => {
       api.setAuthToken(session?.access_token ?? null);
       setSessionReady(true);
@@ -237,14 +243,14 @@ export default function Dashboard() {
 
   // ── Row hover helpers (memoized style mutators) ────────────────────────────
   const rowEnter = (e: React.MouseEvent<HTMLTableRowElement>) => {
-    (e.currentTarget as HTMLTableRowElement).style.backgroundColor = "#16161f";
+    (e.currentTarget as HTMLTableRowElement).style.backgroundColor = "#F5F5F7";
   };
   const rowLeave = (e: React.MouseEvent<HTMLTableRowElement>) => {
     (e.currentTarget as HTMLTableRowElement).style.backgroundColor = "transparent";
   };
 
   return (
-    <div style={{ minHeight: "100vh", backgroundColor: "#0a0a0f" }}>
+    <div style={{ minHeight: "100vh", backgroundColor: "#F5F5F7" }}>
       <StatusBar />
 
       <main className="pt-10">
@@ -252,34 +258,13 @@ export default function Dashboard() {
 
           {/* ── Header ──────────────────────────────────────────────────── */}
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              {/* Logo mark */}
-              <div
-                className="flex items-center justify-center w-11 h-11 rounded-xl font-black text-xl select-none"
-                style={{
-                  backgroundColor: "rgba(0,212,170,0.1)",
-                  border: "1px solid rgba(0,212,170,0.3)",
-                  color: "#00d4aa",
-                }}
-              >
-                N
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold tracking-tight" style={{ color: "#f0f0f8" }}>
-                  Foundry
-                </h1>
-                <p
-                  className="text-[11px] uppercase tracking-[0.15em] mt-0.5"
-                  style={{ color: "#444466" }}
-                >
-                  Sector Breakout · Paper Trading
-                </p>
-              </div>
-            </div>
+            <span className="text-sm font-semibold" style={{ color: "#AEAEB2" }}>
+              Foundry
+            </span>
 
             <div className="flex items-center gap-3">
               {lastRefreshed && (
-                <span className="text-[11px]" style={{ color: "#444466" }}>
+                <span className="text-[11px]" style={{ color: "#6E6E73" }}>
                   Updated {formatDistanceToNow(lastRefreshed, { addSuffix: true })}
                 </span>
               )}
@@ -287,16 +272,16 @@ export default function Dashboard() {
                 onClick={refresh}
                 disabled={refreshing}
                 className="flex items-center gap-2 px-3 py-1.5 text-xs rounded-lg transition-all disabled:opacity-40"
-                style={{ border: "1px solid #2a2a3e", color: "#8888aa", backgroundColor: "transparent" }}
+                style={{ border: "1px solid #2a2a3e", color: "#6E6E73", backgroundColor: "transparent" }}
                 onMouseEnter={(e) => {
                   const el = e.currentTarget as HTMLButtonElement;
                   el.style.borderColor = "#4d9fff";
-                  el.style.color = "#f0f0f8";
+                  el.style.color = "#1D1D1F";
                 }}
                 onMouseLeave={(e) => {
                   const el = e.currentTarget as HTMLButtonElement;
-                  el.style.borderColor = "#2a2a3e";
-                  el.style.color = "#8888aa";
+                  el.style.borderColor = "#D2D2D7";
+                  el.style.color = "#6E6E73";
                 }}
               >
                 <RefreshCw size={12} className={refreshing ? "animate-spin" : ""} />
@@ -305,14 +290,8 @@ export default function Dashboard() {
               <button
                 onClick={runPipeline}
                 disabled={pipelineLoading}
-                className="flex items-center gap-2 px-4 py-1.5 text-xs font-semibold rounded-lg transition-all disabled:opacity-40"
-                style={{ backgroundColor: "#00d4aa", color: "#0a0a0f" }}
-                onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLButtonElement).style.backgroundColor = "#00bfa0";
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLButtonElement).style.backgroundColor = "#00d4aa";
-                }}
+                className="flex items-center gap-2 px-4 py-1.5 text-xs font-semibold rounded-lg transition-opacity hover:opacity-70 disabled:opacity-40"
+                style={{ background: "none", border: "1px solid #0066CC", color: "#0066CC" }}
               >
                 <Play size={12} className={pipelineLoading ? "animate-pulse" : ""} />
                 {pipelineLoading ? "Running…" : "Run Pipeline"}
@@ -325,24 +304,24 @@ export default function Dashboard() {
             <div
               className="flex items-center gap-3 rounded-xl px-4 py-3"
               style={{
-                backgroundColor: "rgba(255,77,109,0.07)",
-                border: "1px solid rgba(255,77,109,0.3)",
-                boxShadow: "0 0 20px rgba(255,77,109,0.08)",
+                backgroundColor: "rgba(255,59,48,0.07)",
+                border: "1px solid rgba(255,59,48,0.3)",
+                boxShadow: "0 0 20px rgba(255,59,48,0.08)",
               }}
             >
-              <AlertCircle size={16} style={{ color: "#ff4d6d", flexShrink: 0 }} />
-              <span className="text-sm flex-1" style={{ color: "#ff4d6d" }}>{error}</span>
+              <AlertCircle size={16} style={{ color: "#FF3B30", flexShrink: 0 }} />
+              <span className="text-sm flex-1" style={{ color: "#FF3B30" }}>{error}</span>
               <button
                 onClick={() => setError(null)}
                 className="text-xs px-2 py-1 rounded"
-                style={{ color: "#ff4d6d", backgroundColor: "rgba(255,77,109,0.1)" }}
+                style={{ color: "#FF3B30", backgroundColor: "rgba(255,59,48,0.1)" }}
               >
                 Dismiss
               </button>
               <button
                 onClick={refresh}
                 className="text-xs px-2 py-1 rounded font-semibold"
-                style={{ color: "#0a0a0f", backgroundColor: "#ff4d6d" }}
+                style={{ color: "#0a0a0f", backgroundColor: "#FF3B30" }}
               >
                 Retry
               </button>
@@ -384,13 +363,13 @@ export default function Dashboard() {
               <div className="flex items-center justify-between mb-1">
                 <span
                   className="text-[10px] font-semibold uppercase tracking-wider"
-                  style={{ color: "#8888aa" }}
+                  style={{ color: "#6E6E73" }}
                 >
                   Portfolio Value
                 </span>
                 <span
                   className="text-[10px] px-2 py-0.5 rounded-full"
-                  style={{ backgroundColor: "#1e1e2e", color: "#444466" }}
+                  style={{ backgroundColor: "#D2D2D7", color: "#6E6E73" }}
                 >
                   30d Simulated
                 </span>
@@ -398,7 +377,7 @@ export default function Dashboard() {
               {account && (
                 <div
                   className="text-sm font-bold tabular-nums mt-0.5"
-                  style={{ color: "#00d4aa", fontVariantNumeric: "tabular-nums" }}
+                  style={{ color: "#34C759", fontVariantNumeric: "tabular-nums" }}
                 >
                   {fmtUsd(account.equity)}
                 </div>
@@ -410,7 +389,7 @@ export default function Dashboard() {
             <Panel className="p-4">
               <span
                 className="text-[10px] font-semibold uppercase tracking-wider"
-                style={{ color: "#8888aa" }}
+                style={{ color: "#6E6E73" }}
               >
                 Active Themes
               </span>
@@ -425,7 +404,7 @@ export default function Dashboard() {
                       >
                         {count}
                       </div>
-                      <div className="text-[9px] uppercase tracking-wider" style={{ color: "#444466" }}>
+                      <div className="text-[9px] uppercase tracking-wider" style={{ color: "#6E6E73" }}>
                         {s}
                       </div>
                     </div>
@@ -439,7 +418,7 @@ export default function Dashboard() {
             <Panel className="p-4 relative">
               <span
                 className="text-[10px] font-semibold uppercase tracking-wider"
-                style={{ color: "#8888aa" }}
+                style={{ color: "#6E6E73" }}
               >
                 Win Rate
               </span>
@@ -461,8 +440,8 @@ export default function Dashboard() {
                       dataKey="value"
                       strokeWidth={0}
                     >
-                      <Cell fill="#00d4aa" />
-                      <Cell fill="#1e1e2e" />
+                      <Cell fill="#34C759" />
+                      <Cell fill="#D2D2D7" />
                     </Pie>
                   </PieChart>
                 </ResponsiveContainer>
@@ -474,13 +453,13 @@ export default function Dashboard() {
                 <span
                   className="text-2xl font-bold tabular-nums"
                   style={{
-                    color: winRate > 50 ? "#00d4aa" : winRate > 0 ? "#fbbf24" : "#8888aa",
+                    color: winRate > 50 ? "#34C759" : winRate > 0 ? "#FF9500" : "#6E6E73",
                     fontVariantNumeric: "tabular-nums",
                   }}
                 >
                   {winRate}%
                 </span>
-                <span className="text-[10px]" style={{ color: "#444466" }}>
+                <span className="text-[10px]" style={{ color: "#6E6E73" }}>
                   {positions.length} position{positions.length !== 1 ? "s" : ""}
                 </span>
               </div>
@@ -495,7 +474,7 @@ export default function Dashboard() {
             {/* Tab bar */}
             <div
               className="flex gap-1 p-1 rounded-xl w-fit mb-4"
-              style={{ backgroundColor: "#111118", border: "1px solid #1e1e2e" }}
+              style={{ backgroundColor: "#FFFFFF", border: "1px solid #D2D2D7" }}
             >
               {tabs.map((tab) => (
                 <button
@@ -504,14 +483,14 @@ export default function Dashboard() {
                   className="flex items-center gap-2 px-4 py-2 text-xs font-medium rounded-lg transition-all duration-200"
                   style={{
                     backgroundColor:
-                      activeTab === tab.value ? "rgba(0,212,170,0.12)" : "transparent",
-                    color: activeTab === tab.value ? "#00d4aa" : "#8888aa",
+                      activeTab === tab.value ? "rgba(0,102,204,0.12)" : "transparent",
+                    color: activeTab === tab.value ? "#0066CC" : "#6E6E73",
                     border:
                       activeTab === tab.value
-                        ? "1px solid rgba(0,212,170,0.25)"
+                        ? "1px solid rgba(0,102,204,0.25)"
                         : "1px solid transparent",
                     boxShadow:
-                      activeTab === tab.value ? "0 0 8px rgba(0,212,170,0.08)" : "none",
+                      activeTab === tab.value ? "0 0 8px rgba(0,102,204,0.08)" : "none",
                   }}
                 >
                   {tab.label}
@@ -521,9 +500,9 @@ export default function Dashboard() {
                       style={{
                         backgroundColor:
                           activeTab === tab.value
-                            ? "rgba(0,212,170,0.2)"
+                            ? "rgba(0,102,204,0.2)"
                             : "rgba(136,136,170,0.15)",
-                        color: activeTab === tab.value ? "#00d4aa" : "#8888aa",
+                        color: activeTab === tab.value ? "#0066CC" : "#6E6E73",
                         fontVariantNumeric: "tabular-nums",
                       }}
                     >
@@ -539,16 +518,16 @@ export default function Dashboard() {
               <div className="space-y-4 animate-fade-in">
                 <Panel className="p-5">
                   <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-sm font-semibold" style={{ color: "#f0f0f8" }}>
+                    <h3 className="text-sm font-semibold" style={{ color: "#1D1D1F" }}>
                       Theme Signal Breakdown
                     </h3>
                     <div className="flex items-center gap-4">
-                      {[["News", "#4d9fff"], ["Social", "#a78bfa"], ["ETF", "#fbbf24"]].map(
+                      {[["News", "#4d9fff"], ["Social", "#a78bfa"], ["ETF", "#FF9500"]].map(
                           ([k, c]) => (
                             <span
                               key={k}
                               className="flex items-center gap-1.5 text-[10px]"
-                              style={{ color: "#8888aa" }}
+                              style={{ color: "#6E6E73" }}
                             >
                               <span
                                 className="w-2 h-2 rounded-sm inline-block"
@@ -590,7 +569,7 @@ export default function Dashboard() {
                             <td className="px-4 py-3">
                               <span
                                 className="font-semibold text-sm"
-                                style={{ color: "#f0f0f8" }}
+                                style={{ color: "#1D1D1F" }}
                               >
                                 {t.name}
                               </span>
@@ -607,13 +586,13 @@ export default function Dashboard() {
                                   <span
                                     className="relative inline-flex rounded-full h-2 w-2"
                                     style={{
-                                      backgroundColor: STATUS_DOT[t.status] ?? "#444466",
+                                      backgroundColor: STATUS_DOT[t.status] ?? "#6E6E73",
                                     }}
                                   />
                                 </span>
                                 <span
                                   className="text-xs capitalize"
-                                  style={{ color: STATUS_DOT[t.status] ?? "#8888aa" }}
+                                  style={{ color: STATUS_DOT[t.status] ?? "#6E6E73" }}
                                 >
                                   {t.status}
                                 </span>
@@ -623,20 +602,20 @@ export default function Dashboard() {
                               <div className="flex items-center gap-2">
                                 <div
                                   className="w-16 h-1.5 rounded-full overflow-hidden"
-                                  style={{ backgroundColor: "#1e1e2e" }}
+                                  style={{ backgroundColor: "#D2D2D7" }}
                                 >
                                   <div
                                     className="h-full rounded-full"
                                     style={{
                                       width: `${Math.min(100, ((t.score ?? 0) / 3) * 100)}%`,
-                                      backgroundColor: STATUS_DOT[t.status] ?? "#00d4aa",
+                                      backgroundColor: STATUS_DOT[t.status] ?? "#34C759",
                                     }}
                                   />
                                 </div>
                                 <span
                                   className="text-xs tabular-nums"
                                   style={{
-                                    color: "#8888aa",
+                                    color: "#6E6E73",
                                     fontVariantNumeric: "tabular-nums",
                                   }}
                                 >
@@ -651,7 +630,7 @@ export default function Dashboard() {
                               >
                                 <span style={{ color: "#4d9fff" }}>N:{fmt(t.news_score, 1)}</span>
                                 <span style={{ color: "#a78bfa" }}>S:{fmt(t.social_score, 1)}</span>
-                                <span style={{ color: "#fbbf24" }}>E:{fmt(t.etf_score, 1)}</span>
+                                <span style={{ color: "#FF9500" }}>E:{fmt(t.etf_score, 1)}</span>
                               </div>
                             </td>
                             <td className="px-4 py-3">
@@ -664,7 +643,7 @@ export default function Dashboard() {
                                     <span
                                       key={i}
                                       className="text-[10px] px-2 py-0.5 rounded-full"
-                                      style={{ backgroundColor: "#1e1e2e", color: "#8888aa" }}
+                                      style={{ backgroundColor: "#D2D2D7", color: "#6E6E73" }}
                                     >
                                       {kw.trim()}
                                     </span>
@@ -672,7 +651,7 @@ export default function Dashboard() {
                               </div>
                             </td>
                             <td className="px-4 py-3">
-                              <span className="text-[11px]" style={{ color: "#444466" }}>
+                              <span className="text-[11px]" style={{ color: "#6E6E73" }}>
                                 {t.updated_at
                                   ? formatDistanceToNow(new Date(t.updated_at), { addSuffix: true })
                                   : "—"}
@@ -692,18 +671,18 @@ export default function Dashboard() {
               <div className="space-y-4 animate-fade-in">
                 <Panel className="p-5">
                   <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-sm font-semibold" style={{ color: "#f0f0f8" }}>
+                    <h3 className="text-sm font-semibold" style={{ color: "#1D1D1F" }}>
                       Volume Ratio by Symbol
                     </h3>
                     <div className="flex items-center gap-4">
                       {[
-                        ["Near Breakout", "#00d4aa"],
-                        ["Watching", "#fbbf24"],
+                        ["Near Breakout", "#34C759"],
+                        ["Watching", "#FF9500"],
                       ].map(([k, c]) => (
                         <span
                           key={k}
                           className="flex items-center gap-1.5 text-[10px]"
-                          style={{ color: "#8888aa" }}
+                          style={{ color: "#6E6E73" }}
                         >
                           <span
                             className="w-2 h-2 rounded-sm inline-block"
@@ -744,20 +723,20 @@ export default function Dashboard() {
                             onMouseLeave={rowLeave}
                           >
                             <td className="px-4 py-3">
-                              <div className="font-bold text-sm" style={{ color: "#f0f0f8" }}>
+                              <div className="font-bold text-sm" style={{ color: "#1D1D1F" }}>
                                 {w.symbol}
                               </div>
                               {w.company_name && (
                                 <div
                                   className="text-[11px] truncate"
-                                  style={{ color: "#444466", maxWidth: "120px" }}
+                                  style={{ color: "#6E6E73", maxWidth: "120px" }}
                                 >
                                   {w.company_name}
                                 </div>
                               )}
                             </td>
                             <td className="px-4 py-3">
-                              <span className="text-[11px]" style={{ color: "#8888aa" }}>
+                              <span className="text-[11px]" style={{ color: "#6E6E73" }}>
                                 {w.theme_name ?? "—"}
                               </span>
                             </td>
@@ -765,7 +744,7 @@ export default function Dashboard() {
                               <span
                                 className="text-sm font-semibold tabular-nums"
                                 style={{
-                                  color: "#f0f0f8",
+                                  color: "#1D1D1F",
                                   fontVariantNumeric: "tabular-nums",
                                 }}
                               >
@@ -775,18 +754,18 @@ export default function Dashboard() {
                             <td className="px-4 py-3">
                               <div
                                 className="text-[11px]"
-                                style={{ color: "#8888aa", fontVariantNumeric: "tabular-nums" }}
+                                style={{ color: "#6E6E73", fontVariantNumeric: "tabular-nums" }}
                               >
                                 <span>{fmtVol(w.float_shares)}</span>
-                                <span style={{ color: "#444466" }}> / </span>
+                                <span style={{ color: "#6E6E73" }}> / </span>
                                 <span>{fmtVol(w.avg_volume)}</span>
                               </div>
                             </td>
                             <td className="px-4 py-3">
                               {w.structure_clean ? (
-                                <CheckCircle2 size={16} style={{ color: "#00d4aa" }} />
+                                <CheckCircle2 size={16} style={{ color: "#34C759" }} />
                               ) : (
-                                <X size={16} style={{ color: "#ff4d6d" }} />
+                                <X size={16} style={{ color: "#FF3B30" }} />
                               )}
                             </td>
                             <td className="px-4 py-3">
@@ -795,22 +774,22 @@ export default function Dashboard() {
                                   <span className="relative flex h-2 w-2">
                                     <span
                                       className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75"
-                                      style={{ backgroundColor: "#00d4aa" }}
+                                      style={{ backgroundColor: "#34C759" }}
                                     />
                                     <span
                                       className="relative inline-flex rounded-full h-2 w-2"
-                                      style={{ backgroundColor: "#00d4aa" }}
+                                      style={{ backgroundColor: "#34C759" }}
                                     />
                                   </span>
                                   <span
                                     className="text-[11px] font-semibold uppercase tracking-wide"
-                                    style={{ color: "#00d4aa" }}
+                                    style={{ color: "#34C759" }}
                                   >
                                     BREAKOUT
                                   </span>
                                 </div>
                               ) : (
-                                <span style={{ color: "#444466" }}>—</span>
+                                <span style={{ color: "#6E6E73" }}>—</span>
                               )}
                             </td>
                             <td className="px-4 py-3">
@@ -820,24 +799,24 @@ export default function Dashboard() {
                                   style={{
                                     color:
                                       w.volume_ratio > 2
-                                        ? "#00d4aa"
+                                        ? "#34C759"
                                         : w.volume_ratio > 1
-                                        ? "#fbbf24"
-                                        : "#8888aa",
+                                        ? "#FF9500"
+                                        : "#6E6E73",
                                     fontVariantNumeric: "tabular-nums",
                                   }}
                                 >
                                   {w.volume_ratio.toFixed(1)}x
                                 </span>
                               ) : (
-                                <span style={{ color: "#444466" }}>—</span>
+                                <span style={{ color: "#6E6E73" }}>—</span>
                               )}
                             </td>
                             <td className="px-4 py-3">
                               <div className="flex items-center gap-2">
                                 <div
                                   className="w-12 h-1 rounded-full overflow-hidden"
-                                  style={{ backgroundColor: "#1e1e2e" }}
+                                  style={{ backgroundColor: "#D2D2D7" }}
                                 >
                                   <div
                                     className="h-full rounded-full"
@@ -850,7 +829,7 @@ export default function Dashboard() {
                                 <span
                                   className="text-[11px] tabular-nums"
                                   style={{
-                                    color: "#8888aa",
+                                    color: "#6E6E73",
                                     fontVariantNumeric: "tabular-nums",
                                   }}
                                 >
@@ -885,24 +864,24 @@ export default function Dashboard() {
                           borderTop: "1px solid #1e1e2e",
                           borderRight: "1px solid #1e1e2e",
                           borderBottom: "1px solid #1e1e2e",
-                          borderLeft: `3px solid ${totalPnl >= 0 ? "#00d4aa" : "#ff4d6d"}`,
+                          borderLeft: `3px solid ${totalPnl >= 0 ? "#34C759" : "#FF3B30"}`,
                         }}
                       >
                         <div
                           className="text-[10px] font-semibold uppercase tracking-wider mb-1"
-                          style={{ color: "#444466" }}
+                          style={{ color: "#6E6E73" }}
                         >
                           Total Unrealized P&L
                         </div>
                         <div
                           className="text-3xl font-bold tabular-nums"
                           style={{
-                            color: totalPnl >= 0 ? "#00d4aa" : "#ff4d6d",
+                            color: totalPnl >= 0 ? "#34C759" : "#FF3B30",
                             fontVariantNumeric: "tabular-nums",
                             textShadow:
                               totalPnl >= 0
-                                ? "0 0 20px rgba(0,212,170,0.3)"
-                                : "0 0 20px rgba(255,77,109,0.3)",
+                                ? "0 0 20px rgba(52,199,89,0.3)"
+                                : "0 0 20px rgba(255,59,48,0.3)",
                           }}
                         >
                           {fmtUsd(totalPnl)}
@@ -922,17 +901,17 @@ export default function Dashboard() {
                         >
                           <div
                             className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider mb-1"
-                            style={{ color: "#444466" }}
+                            style={{ color: "#6E6E73" }}
                           >
-                            <Trophy size={10} style={{ color: "#fbbf24" }} />
+                            <Trophy size={10} style={{ color: "#FF9500" }} />
                             Best Winner
                           </div>
-                          <div className="font-bold text-sm" style={{ color: "#f0f0f8" }}>
+                          <div className="font-bold text-sm" style={{ color: "#1D1D1F" }}>
                             {biggestWinner.symbol}
                           </div>
                           <div
                             className="text-sm tabular-nums font-semibold"
-                            style={{ color: "#00d4aa", fontVariantNumeric: "tabular-nums" }}
+                            style={{ color: "#34C759", fontVariantNumeric: "tabular-nums" }}
                           >
                             {fmtUsd(biggestWinner.unrealized_pnl)}
                           </div>
@@ -952,17 +931,17 @@ export default function Dashboard() {
                         >
                           <div
                             className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider mb-1"
-                            style={{ color: "#444466" }}
+                            style={{ color: "#6E6E73" }}
                           >
-                            <TrendingDown size={10} style={{ color: "#ff4d6d" }} />
+                            <TrendingDown size={10} style={{ color: "#FF3B30" }} />
                             Biggest Loser
                           </div>
-                          <div className="font-bold text-sm" style={{ color: "#f0f0f8" }}>
+                          <div className="font-bold text-sm" style={{ color: "#1D1D1F" }}>
                             {biggestLoser.symbol}
                           </div>
                           <div
                             className="text-sm tabular-nums font-semibold"
-                            style={{ color: "#ff4d6d", fontVariantNumeric: "tabular-nums" }}
+                            style={{ color: "#FF3B30", fontVariantNumeric: "tabular-nums" }}
                           >
                             {fmtUsd(biggestLoser.unrealized_pnl)}
                           </div>
@@ -972,7 +951,7 @@ export default function Dashboard() {
 
                     {/* P&L Chart */}
                     <Panel className="p-5">
-                      <h3 className="text-sm font-semibold mb-3" style={{ color: "#f0f0f8" }}>
+                      <h3 className="text-sm font-semibold mb-3" style={{ color: "#1D1D1F" }}>
                         Position P&L
                       </h3>
                       <PnlChart positions={positions} />
@@ -1013,7 +992,7 @@ export default function Dashboard() {
                                     <div className="flex items-center gap-2">
                                       <span
                                         className="font-bold text-sm"
-                                        style={{ color: "#f0f0f8" }}
+                                        style={{ color: "#1D1D1F" }}
                                       >
                                         {p.symbol}
                                       </span>
@@ -1032,7 +1011,7 @@ export default function Dashboard() {
                                     <span
                                       className="text-sm tabular-nums"
                                       style={{
-                                        color: "#8888aa",
+                                        color: "#6E6E73",
                                         fontVariantNumeric: "tabular-nums",
                                       }}
                                     >
@@ -1044,15 +1023,15 @@ export default function Dashboard() {
                                       className="flex items-center gap-1.5 text-sm tabular-nums"
                                       style={{ fontVariantNumeric: "tabular-nums" }}
                                     >
-                                      <span style={{ color: "#8888aa" }}>
+                                      <span style={{ color: "#6E6E73" }}>
                                         {fmtUsd(p.avg_entry_price)}
                                       </span>
                                       {isPos ? (
-                                        <ArrowUp size={12} style={{ color: "#00d4aa" }} />
+                                        <ArrowUp size={12} style={{ color: "#34C759" }} />
                                       ) : (
-                                        <ArrowDown size={12} style={{ color: "#ff4d6d" }} />
+                                        <ArrowDown size={12} style={{ color: "#FF3B30" }} />
                                       )}
-                                      <span style={{ color: isPos ? "#00d4aa" : "#ff4d6d" }}>
+                                      <span style={{ color: isPos ? "#34C759" : "#FF3B30" }}>
                                         {fmtUsd(p.current_price)}
                                       </span>
                                     </div>
@@ -1061,11 +1040,11 @@ export default function Dashboard() {
                                     <div
                                       className="font-bold tabular-nums"
                                       style={{
-                                        color: isPos ? "#00d4aa" : "#ff4d6d",
+                                        color: isPos ? "#34C759" : "#FF3B30",
                                         fontVariantNumeric: "tabular-nums",
                                         textShadow: isPos
-                                          ? "0 0 8px rgba(0,212,170,0.3)"
-                                          : "0 0 8px rgba(255,77,109,0.25)",
+                                          ? "0 0 8px rgba(52,199,89,0.3)"
+                                          : "0 0 8px rgba(255,59,48,0.25)",
                                       }}
                                     >
                                       {fmtUsd(p.unrealized_pnl)}
@@ -1074,8 +1053,8 @@ export default function Dashboard() {
                                       className="text-[11px] tabular-nums"
                                       style={{
                                         color: isPos
-                                          ? "rgba(0,212,170,0.65)"
-                                          : "rgba(255,77,109,0.65)",
+                                          ? "rgba(52,199,89,0.65)"
+                                          : "rgba(255,59,48,0.65)",
                                         fontVariantNumeric: "tabular-nums",
                                       }}
                                     >
@@ -1086,7 +1065,7 @@ export default function Dashboard() {
                                     <span
                                       className="text-sm tabular-nums"
                                       style={{
-                                        color: "#8888aa",
+                                        color: "#6E6E73",
                                         fontVariantNumeric: "tabular-nums",
                                       }}
                                     >
@@ -1098,12 +1077,12 @@ export default function Dashboard() {
                                       <div className="flex items-center gap-1.5">
                                         <div
                                           className="w-0.5 h-4 rounded-full"
-                                          style={{ backgroundColor: "#ff4d6d" }}
+                                          style={{ backgroundColor: "#FF3B30" }}
                                         />
                                         <span
                                           className="text-sm tabular-nums"
                                           style={{
-                                            color: "#ff4d6d",
+                                            color: "#FF3B30",
                                             fontVariantNumeric: "tabular-nums",
                                           }}
                                         >
@@ -1111,15 +1090,15 @@ export default function Dashboard() {
                                         </span>
                                       </div>
                                     ) : (
-                                      <span style={{ color: "#444466" }}>—</span>
+                                      <span style={{ color: "#6E6E73" }}>—</span>
                                     )}
                                   </td>
                                   <td className="px-4 py-3">
                                     {(p.actions?.length ?? 0) > 0 &&
                                       (isExpanded ? (
-                                        <ChevronDown size={14} style={{ color: "#444466" }} />
+                                        <ChevronDown size={14} style={{ color: "#6E6E73" }} />
                                       ) : (
-                                        <ChevronRight size={14} style={{ color: "#444466" }} />
+                                        <ChevronRight size={14} style={{ color: "#6E6E73" }} />
                                       ))}
                                   </td>
                                 </tr>
@@ -1130,7 +1109,7 @@ export default function Dashboard() {
                                     <td
                                       colSpan={7}
                                       className="px-4 pb-3 pt-0"
-                                      style={{ backgroundColor: "#0d0d14" }}
+                                      style={{ backgroundColor: "#F5F5F7" }}
                                     >
                                       <div
                                         className="rounded-lg p-3 mt-1"
@@ -1138,7 +1117,7 @@ export default function Dashboard() {
                                       >
                                         <div
                                           className="text-[10px] font-semibold uppercase tracking-wider mb-2"
-                                          style={{ color: "#444466" }}
+                                          style={{ color: "#6E6E73" }}
                                         >
                                           Trade History
                                         </div>
@@ -1153,10 +1132,10 @@ export default function Dashboard() {
                                                 style={{
                                                   backgroundColor:
                                                     a.type === "buy"
-                                                      ? "rgba(0,212,170,0.1)"
-                                                      : "rgba(255,77,109,0.1)",
+                                                      ? "rgba(52,199,89,0.1)"
+                                                      : "rgba(255,59,48,0.1)",
                                                   color:
-                                                    a.type === "buy" ? "#00d4aa" : "#ff4d6d",
+                                                    a.type === "buy" ? "#34C759" : "#FF3B30",
                                                 }}
                                               >
                                                 {a.type}
@@ -1164,16 +1143,16 @@ export default function Dashboard() {
                                               <span
                                                 className="tabular-nums"
                                                 style={{
-                                                  color: "#8888aa",
+                                                  color: "#6E6E73",
                                                   fontVariantNumeric: "tabular-nums",
                                                 }}
                                               >
                                                 {a.qty} @ {fmtUsd(a.price)}
                                               </span>
-                                              <span style={{ color: "#444466" }}>{a.reason}</span>
+                                              <span style={{ color: "#6E6E73" }}>{a.reason}</span>
                                               <span
                                                 className="ml-auto"
-                                                style={{ color: "#444466" }}
+                                                style={{ color: "#6E6E73" }}
                                               >
                                                 {a.at
                                                   ? formatDistanceToNow(new Date(a.at), {
@@ -1218,11 +1197,11 @@ export default function Dashboard() {
                         className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium rounded-lg transition-all"
                         style={{
                           backgroundColor:
-                            alertFilter === f.key ? "rgba(0,212,170,0.12)" : "#111118",
+                            alertFilter === f.key ? "rgba(52,199,89,0.12)" : "#111118",
                           border: `1px solid ${
-                            alertFilter === f.key ? "rgba(0,212,170,0.3)" : "#1e1e2e"
+                            alertFilter === f.key ? "rgba(52,199,89,0.3)" : "#D2D2D7"
                           }`,
-                          color: alertFilter === f.key ? "#00d4aa" : "#8888aa",
+                          color: alertFilter === f.key ? "#34C759" : "#6E6E73",
                         }}
                       >
                         {f.label}
@@ -1232,10 +1211,10 @@ export default function Dashboard() {
                             style={{
                               backgroundColor:
                                 alertFilter === f.key
-                                  ? "rgba(0,212,170,0.2)"
-                                  : "#1e1e2e",
+                                  ? "rgba(52,199,89,0.2)"
+                                  : "#D2D2D7",
                               color:
-                                alertFilter === f.key ? "#00d4aa" : "#444466",
+                                alertFilter === f.key ? "#34C759" : "#6E6E73",
                             }}
                           >
                             {f.count}
@@ -1249,16 +1228,16 @@ export default function Dashboard() {
                     <button
                       onClick={handleAckAll}
                       className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium rounded-lg transition-all"
-                      style={{ border: "1px solid #2a2a3e", color: "#8888aa", backgroundColor: "transparent" }}
+                      style={{ border: "1px solid #2a2a3e", color: "#6E6E73", backgroundColor: "transparent" }}
                       onMouseEnter={(e) => {
                         const el = e.currentTarget as HTMLButtonElement;
-                        el.style.color = "#f0f0f8";
+                        el.style.color = "#1D1D1F";
                         el.style.borderColor = "#4d9fff";
                       }}
                       onMouseLeave={(e) => {
                         const el = e.currentTarget as HTMLButtonElement;
-                        el.style.color = "#8888aa";
-                        el.style.borderColor = "#2a2a3e";
+                        el.style.color = "#6E6E73";
+                        el.style.borderColor = "#D2D2D7";
                       }}
                     >
                       <Check size={11} />
@@ -1271,8 +1250,8 @@ export default function Dashboard() {
                 <ScrollArea className="h-[500px]">
                   {filteredAlerts.length === 0 ? (
                     <div className="py-16 text-center">
-                      <Activity size={28} style={{ color: "#1e1e2e", margin: "0 auto 10px" }} />
-                      <p style={{ color: "#444466", fontSize: "13px" }}>
+                      <Activity size={28} style={{ color: "#D2D2D7", margin: "0 auto 10px" }} />
+                      <p style={{ color: "#6E6E73", fontSize: "13px" }}>
                         No alerts in this category.
                       </p>
                     </div>
