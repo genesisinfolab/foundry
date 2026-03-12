@@ -124,6 +124,7 @@ export default function Dashboard() {
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
   const [activeTab, setActiveTab] = useState("themes");
   const [alertFilter, setAlertFilter] = useState("all");
+  const [activeStrategy, setActiveStrategy] = useState<"newman" | "golden">("newman");
   const [expandedPositions, setExpandedPositions] = useState<Set<number>>(new Set());
   const [sessionReady, setSessionReady] = useState(false);
 
@@ -258,9 +259,43 @@ export default function Dashboard() {
 
           {/* ── Header ──────────────────────────────────────────────────── */}
           <div className="flex items-center justify-between">
-            <span className="text-sm font-semibold" style={{ color: "#AEAEB2" }}>
-              Foundry
-            </span>
+            <div className="flex items-center gap-4">
+              <span className="text-sm font-semibold" style={{ color: "#AEAEB2" }}>
+                Foundry
+              </span>
+              {/* Strategy selector */}
+              <div
+                className="flex items-center rounded-lg p-0.5"
+                style={{ backgroundColor: "#F5F5F7", border: "1px solid #D2D2D7" }}
+              >
+                {(["newman", "golden"] as const).map((sid) => {
+                  const active = activeStrategy === sid;
+                  return (
+                    <button
+                      key={sid}
+                      onClick={() => setActiveStrategy(sid)}
+                      className="px-3 py-1 text-xs font-semibold rounded-md transition-all"
+                      style={{
+                        backgroundColor: active ? "#FFFFFF" : "transparent",
+                        color: active ? "#1D1D1F" : "#6E6E73",
+                        boxShadow: active ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
+                        border: active ? "1px solid #D2D2D7" : "1px solid transparent",
+                      }}
+                    >
+                      {sid === "newman" ? "Newman" : "Golden"}
+                    </button>
+                  );
+                })}
+              </div>
+              {activeStrategy === "golden" && (
+                <span
+                  className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                  style={{ backgroundColor: "rgba(255,149,0,0.12)", color: "#FF9500" }}
+                >
+                  Generational Tech
+                </span>
+              )}
+            </div>
 
             <div className="flex items-center gap-3">
               {lastRefreshed && (

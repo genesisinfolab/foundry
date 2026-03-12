@@ -1,4 +1,12 @@
-"""Background scheduler for automated scanning — Newman persona baseline"""
+"""Background scheduler for automated scanning.
+
+Registered strategies:
+  - newman  : Jeffrey Newman penny-stock sector breakout (default)
+  - golden  : Chuck's generational-tech conviction thesis
+
+Each strategy runs in its own named scheduler job so they can be
+enabled/disabled independently via ACTIVE_STRATEGIES config.
+"""
 import logging
 from apscheduler.schedulers.background import BackgroundScheduler
 from app.database import SessionLocal
@@ -10,9 +18,74 @@ from app.services.trade_executor import TradeExecutor
 from app.services.risk_manager import RiskManager
 from app.services.notifier import notify_scan_summary
 from app.services import newman_persona
+from app.strategies.newman import NewmanStrategy
+from app.strategies.golden import GoldenStrategy
 
 logger = logging.getLogger(__name__)
 logger.info(f"Newman persona loaded: {newman_persona.PERSONA_NAME} v{newman_persona.PERSONA_VERSION} — {newman_persona.PERSONA_DESCRIPTION}")
+
+# Strategy registry — add new strategies here
+STRATEGY_REGISTRY = {
+    "newman": NewmanStrategy,
+    "golden": GoldenStrategy,
+}
+
+
+def get_active_strategies() -> list:
+    """Return instantiated strategy objects based on ACTIVE_STRATEGIES env var.
+
+    Defaults to newman only. Set ACTIVE_STRATEGIES=newman,golden to run both.
+    """
+    from app.config import get_settings
+    settings = get_settings()
+    active_ids = getattr(settings, "active_strategies", "newman").split(",")
+    strategies = []
+    for sid in active_ids:
+        sid = sid.strip()
+        if sid in STRATEGY_REGISTRY:
+            strategies.append(STRATEGY_REGISTRY[sid]())
+            logger.info(f"Strategy registered: {sid}")
+        else:
+            logger.warning(f"Unknown strategy id '{sid}' in ACTIVE_STRATEGIES — skipped")
+    return strategies
+
+
+def run_golden_scan_cycle():
+    """Golden strategy scan cycle stub — runs research + flags conviction candidates.
+
+    Does NOT execute trades until golden_scanner service is fully implemented.
+    Currently: logs strategy config, identifies sector universe, and flags
+    watchlist candidates matching Golden's screening criteria.
+    """
+    logger.info("Starting Golden strategy scan cycle...")
+    strategy = GoldenStrategy()
+    sc = strategy.get_screening_criteria()
+    ec = strategy.get_entry_criteria()
+    logger.info(
+        f"Golden scan | sectors={sc.sectors} | "
+        f"price_range=[{sc.min_price}, {sc.max_price}(soft)] | "
+        f"correction_score_min={ec['correction_score_min']} | "
+        f"cross_ref={ec['cross_reference_sources']}"
+    )
+    db = SessionLocal()
+    try:
+        # Phase 1 (stub): Log strategy parameters — full scanner in next build phase
+        # TODO: implement GoldenScanner service that:
+        #   1. Fetches Situational Awareness LP 13F holdings from SEC EDGAR
+        #   2. Fetches ARK daily holdings from ark-funds.com
+        #   3. Computes correction_score from SPY drawdown vs 52-week high
+        #   4. Screens watchlist items matching golden sectors + price filter
+        #   5. Scores candidates on conviction_tier and logs to DB
+        logger.info(
+            f"Golden scan stub complete | strategy={strategy.strategy_name} | "
+            f"Situational Awareness holdings tracked: {len([])} | "
+            f"ARK ETFs tracked: {len([])} | "
+            "Full scanner implementation pending next build phase."
+        )
+    except Exception as e:
+        logger.error(f"Golden scan cycle failed: {e}")
+    finally:
+        db.close()
 
 
 def run_scan_cycle():
@@ -242,6 +315,25 @@ def create_scheduler() -> BackgroundScheduler:
         minute="0",
         timezone="US/Eastern",
         id="watchlist_refresh",
+    )
+
+    # Golden strategy: research scan runs daily at 8 AM and 6 PM ET (stub — no trades)
+    # Registers early so the job exists when the full scanner is implemented.
+    # Set ACTIVE_STRATEGIES=newman,golden to also run the full golden scan cycle.
+    scheduler.add_job(
+        run_golden_scan_cycle,
+        "cron",
+        day_of_week="mon-fri",
+        hour="8,18",
+        minute="30",
+        timezone="US/Eastern",
+        id="golden_scan",
+    )
+
+    active = get_active_strategies()
+    logger.info(
+        f"Scheduler initialized | active strategies: {[s.strategy_id for s in active]} | "
+        f"registered jobs: {[j.id for j in scheduler.get_jobs()]}"
     )
 
     return scheduler
