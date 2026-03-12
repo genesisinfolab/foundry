@@ -152,14 +152,26 @@ def run_research_cycle():
 def run_scan_with_health():
     """Wrapper: full scan cycle followed immediately by health check."""
     from app.services.health_check import run as health_run
+    from app.services.notifier import notify_health_check
     run_scan_cycle()
     try:
-        health_run()
+        results = health_run()
+        fails = [r for r in results if r["status"] == "FAIL"]
+        warns = [r for r in results if r["status"] == "WARN"]
+        overall = results[-1]["status"] if results else "UNKNOWN"
+        fail_details = [r["detail"][:80] for r in fails[:3]]
+        warn_details = [r["detail"][:80] for r in warns[:2]]
+        notify_health_check(overall, len(fails), len(warns), fail_details, warn_details)
     except Exception as e:
         logger.error(f"Post-scan health check failed: {e}")
 
 
 def create_scheduler() -> BackgroundScheduler:
+    # NOTE: APScheduler state is in-memory only. On Fly.io with auto_stop_machines="stop",
+    # the VM can be stopped between requests and all scheduled jobs restart from scratch on
+    # next wake — causing missed scan cycles. Set min_machines_running = 1 in fly.toml
+    # [http_service] so the VM stays alive through market hours.
+    logger.info("Scheduler created — APScheduler in-memory. min_machines_running=1 required in fly.toml to avoid missed cycles.")
     scheduler = BackgroundScheduler()
 
     # Full scan + trade execution at top of every hour during market hours (Mon–Fri)

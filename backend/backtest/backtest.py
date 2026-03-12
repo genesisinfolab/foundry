@@ -479,15 +479,20 @@ def backtest_symbol(
 # ── Stats helpers ─────────────────────────────────────────────────────────────
 
 def compute_stats(trades: list[dict]) -> dict:
-    """Compute performance stats for a list of trades."""
+    """Compute performance stats for a list of trades, including extended metrics."""
+    empty = {
+        'total_trades': 0, 'winning_trades': 0, 'win_rate_pct': 0,
+        'avg_win_pct': 0, 'avg_loss_pct': 0, 'win_loss_ratio': 0,
+        'expectancy_per_trade': 0, 'profit_factor': 0,
+        'total_return_pct': 0, 'final_equity': 100_000,
+        'max_drawdown_pct': 0, 'sharpe': 0, 'sortino': 0, 'calmar': 0,
+        'avg_hold_days': 0, 'median_hold_days': 0,
+        'max_consec_wins': 0, 'max_consec_losses': 0,
+        'best_trade': None, 'worst_trade': None,
+        'monthly_returns': [],
+    }
     if not trades:
-        return {
-            'total_trades': 0, 'winning_trades': 0, 'win_rate_pct': 0,
-            'avg_win_pct': 0, 'avg_loss_pct': 0, 'win_loss_ratio': 0,
-            'expectancy_per_trade': 0, 'profit_factor': 0,
-            'total_return_pct': 0, 'final_equity': 100_000,
-            'max_drawdown_pct': 0, 'sharpe': 0,
-        }
+        return empty
 
     wins   = [t for t in trades if t['pnl_pct'] > 0]
     losses = [t for t in trades if t['pnl_pct'] <= 0]
@@ -509,7 +514,8 @@ def compute_stats(trades: list[dict]) -> dict:
     peak   = equity
     max_dd = 0.0
     returns: list[float] = []
-    for t in sorted(trades, key=lambda x: x['entry_date']):
+    sorted_trades = sorted(trades, key=lambda x: x['entry_date'])
+    for t in sorted_trades:
         risk_usd = equity * 0.05
         pnl_usd  = risk_usd * (t['pnl_pct'] / 100.0)
         equity  += pnl_usd
@@ -528,6 +534,103 @@ def compute_stats(trades: list[dict]) -> dict:
     else:
         sharpe = 0.0
 
+    # ── Extended metrics ─────────────────────────────────────────────────────
+
+    # Sortino ratio (annualised, downside deviation only)
+    downside_returns = [r for r in returns if r < 0]
+    if downside_returns and len(returns) > 1:
+        mean_ret = float(np.mean(returns))
+        # Downside deviation: RMS of negative returns (full-series denominator)
+        downside_dev = float(np.sqrt(sum(r ** 2 for r in downside_returns) / len(returns)))
+        # Annualise based on trades per year
+        first_date = sorted_trades[0]['entry_date']
+        last_date  = sorted_trades[-1]['exit_date']
+        days_span  = max(1, (datetime.strptime(last_date, '%Y-%m-%d')
+                             - datetime.strptime(first_date, '%Y-%m-%d')).days)
+        trades_per_year = len(trades) / (days_span / 365.25)
+        ann_return   = mean_ret * trades_per_year
+        ann_downside = downside_dev * float(np.sqrt(trades_per_year))
+        sortino = ann_return / ann_downside if ann_downside > 0 else 0.0
+    else:
+        sortino = 0.0
+
+    # Calmar ratio (CAGR / max drawdown)
+    if max_dd > 0 and total_return != 0:
+        first_date = sorted_trades[0]['entry_date']
+        last_date  = sorted_trades[-1]['exit_date']
+        days_span  = max(1, (datetime.strptime(last_date, '%Y-%m-%d')
+                             - datetime.strptime(first_date, '%Y-%m-%d')).days)
+        years = days_span / 365.25
+        cagr = ((equity / 100_000.0) ** (1.0 / years) - 1.0) * 100.0 if years > 0 else 0.0
+        calmar = cagr / max_dd if max_dd > 0 else 0.0
+    else:
+        calmar = 0.0
+        cagr = 0.0
+
+    # Hold days
+    hold_days = [t.get('hold_days', 0) for t in sorted_trades]
+    avg_hold  = float(np.mean(hold_days)) if hold_days else 0.0
+    median_hold = int(np.median(hold_days)) if hold_days else 0
+
+    # Consecutive wins / losses
+    max_consec_wins = max_consec_losses = 0
+    streak = 0
+    for t in sorted_trades:
+        if t['pnl_pct'] > 0:
+            streak = streak + 1 if streak > 0 else 1
+            max_consec_wins = max(max_consec_wins, streak)
+        else:
+            streak = 0
+    streak = 0
+    for t in sorted_trades:
+        if t['pnl_pct'] <= 0:
+            streak = streak + 1 if streak > 0 else 1
+            max_consec_losses = max(max_consec_losses, streak)
+        else:
+            streak = 0
+
+    # Best / worst trade
+    best  = max(sorted_trades, key=lambda t: t['pnl_pct'])
+    worst = min(sorted_trades, key=lambda t: t['pnl_pct'])
+    best_trade  = {'symbol': best['symbol'],  'pnl_pct': best['pnl_pct'],
+                   'sector': best['sector'],  'date': best['entry_date']}
+    worst_trade = {'symbol': worst['symbol'], 'pnl_pct': worst['pnl_pct'],
+                   'sector': worst['sector'], 'date': worst['entry_date']}
+
+    # Monthly returns (attributed to exit month)
+    from collections import defaultdict
+    monthly_pnl: dict[str, list[float]] = defaultdict(list)
+    for t in sorted_trades:
+        month_key = t['exit_date'][:7]  # YYYY-MM
+        monthly_pnl[month_key].append(t['pnl_pct'])
+
+    # Build complete month series
+    if sorted_trades:
+        first_m = datetime.strptime(sorted_trades[0]['exit_date'][:7], '%Y-%m')
+        last_m  = datetime.strptime(sorted_trades[-1]['exit_date'][:7], '%Y-%m')
+        all_months: list[str] = []
+        cur = first_m
+        while cur <= last_m:
+            all_months.append(cur.strftime('%Y-%m'))
+            if cur.month == 12:
+                cur = cur.replace(year=cur.year + 1, month=1)
+            else:
+                cur = cur.replace(month=cur.month + 1)
+        monthly_returns = []
+        for m in all_months:
+            pnls = monthly_pnl.get(m, [])
+            monthly_returns.append({
+                'month': m,
+                'avg_return_pct': round(float(np.mean(pnls)), 2) if pnls else 0.0,
+                'total_return_pct': round(sum(pnls), 2) if pnls else 0.0,
+                'trade_count': len(pnls),
+            })
+        pos_months = sum(1 for mr in monthly_returns if mr['avg_return_pct'] > 0)
+        neg_months = sum(1 for mr in monthly_returns if mr['avg_return_pct'] < 0)
+    else:
+        monthly_returns = []
+        pos_months = neg_months = 0
+
     return {
         'total_trades':         len(trades),
         'winning_trades':       len(wins),
@@ -541,6 +644,18 @@ def compute_stats(trades: list[dict]) -> dict:
         'final_equity':         round(equity, 2),
         'max_drawdown_pct':     round(max_dd, 1),
         'sharpe':               round(sharpe, 2),
+        # Extended metrics
+        'sortino':              round(sortino, 2),
+        'calmar':               round(calmar, 2),
+        'avg_hold_days':        round(avg_hold, 1),
+        'median_hold_days':     median_hold,
+        'max_consec_wins':      max_consec_wins,
+        'max_consec_losses':    max_consec_losses,
+        'best_trade':           best_trade,
+        'worst_trade':          worst_trade,
+        'positive_months':      pos_months,
+        'negative_months':      neg_months,
+        'monthly_returns':      monthly_returns,
     }
 
 
@@ -737,7 +852,17 @@ def run_backtest(
             f"  (${s['final_equity']:,.0f})",
             f"  Max Drawdown:  -{s['max_drawdown_pct']:.1f}%",
             f"  Sharpe:        {s['sharpe']:.2f}  (informational — not a gate for this strategy)",
+            f"  Sortino:       {s['sortino']:.2f}  (downside-risk adjusted)",
+            f"  Calmar:        {s['calmar']:.2f}  (CAGR / max drawdown)",
+            f"  Avg Hold:      {s['avg_hold_days']:.1f} days  (median {s['median_hold_days']})",
+            f"  Max Consec W:  {s['max_consec_wins']}   Max Consec L: {s['max_consec_losses']}",
+            f"  Months:        {s['positive_months']} positive / {s['negative_months']} negative",
         ]
+        if s.get('best_trade'):
+            bt = s['best_trade']
+            wt = s['worst_trade']
+            lines.append(f"  Best Trade:    {bt['symbol']} +{bt['pnl_pct']:.1f}% ({bt['sector']}, {bt['date']})")
+            lines.append(f"  Worst Trade:   {wt['symbol']} {wt['pnl_pct']:.1f}% ({wt['sector']}, {wt['date']})")
         return '\n'.join(lines)
 
     output_lines = [
@@ -779,6 +904,17 @@ def run_backtest(
     for reason, count in sorted(exit_counts.items(), key=lambda x: -x[1]):
         pct = count / len(all_trades) * 100
         output_lines.append(f"  {reason:20s}: {count:3d}  ({pct:.0f}%)")
+
+    # Monthly returns chart (from all-trades stats)
+    if stats_all.get('monthly_returns'):
+        output_lines.append('\nMONTHLY RETURNS (by exit month):')
+        for mr in stats_all['monthly_returns']:
+            r = mr['avg_return_pct']
+            c = mr['trade_count']
+            bar = '█' * int(abs(r) / 2)
+            sign = '+' if r >= 0 else ''
+            icon = '🟢' if r > 0 else ('🔴' if r < 0 else '⚪')
+            output_lines.append(f"  {mr['month']}  {sign}{r:6.1f}%  ({c:2d} trades)  {icon} {bar}")
 
     output_lines.append('\nTOP 5 TRADES:')
     for idx, t in enumerate(top5, 1):

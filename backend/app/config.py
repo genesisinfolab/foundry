@@ -1,6 +1,8 @@
 """Application configuration loaded from .env"""
 from pydantic_settings import BaseSettings
+from pydantic import model_validator
 from functools import lru_cache
+import logging
 import os
 
 
@@ -48,14 +50,28 @@ class Settings(BaseSettings):
     supabase_jwks_url: str = ""  # Auth → Settings → JWKS URL  (ES256 — preferred)
     supabase_jwt_secret: str = ""  # Legacy HS256 fallback — leave blank if using JWKS
 
+    # Operational mode — "paper", "live", or "paused"
+    trading_mode: str = "paper"
+
     # Notifications
     whatsapp_number: str = ""
+    ultramsg_instance_id: str = ""
+    ultramsg_token: str = ""
+    callmebot_api_key: str = ""
 
     # App
     log_level: str = "INFO"
     database_url: str = "sqlite:///./newman_trading.db"
 
-    # Newman Strategy Parameters
+    # Scheduler — set False locally so only Fly.io runs the trading engine.
+    # Both instances share the same Alpaca account; only one should place orders.
+    enable_scheduler: bool = True
+
+    # Multi-tenancy (single-tenant today — owner_id maps to Supabase user ID in future).
+    # All DB rows are stamped with this value; switching to JWT sub is a 1-day job later.
+    owner_id: str = "default"
+
+    # Strategy Parameters (will move to per-tenant config table when multi-tenancy ships)
     theme_news_weight: float = 0.4
     theme_social_weight: float = 0.3
     theme_etf_weight: float = 0.3
@@ -70,6 +86,17 @@ class Settings(BaseSettings):
     profit_take_tiers: list[float] = [0.15, 0.30, 0.45]
     max_pyramid_levels: int = 4
     stopped_out_cooldown_hours: float = 24.0  # Hours to block re-entry after a stop-out
+
+    @model_validator(mode="after")
+    def _warn_missing_critical_vars(self) -> "Settings":
+        _cfg_logger = logging.getLogger(__name__)
+        if not self.alpaca_api_key_id:
+            _cfg_logger.warning("ALPACA_API_KEY_ID is not set — Alpaca integration will fail")
+        if not self.alpaca_api_secret_key:
+            _cfg_logger.warning("ALPACA_SECRET_KEY is not set — Alpaca integration will fail")
+        if not self.whatsapp_number:
+            _cfg_logger.warning("WHATSAPP_NUMBER is not set — trade notifications are disabled")
+        return self
 
     model_config = {"env_file": os.path.join(os.path.dirname(__file__), "../../.env")}
 

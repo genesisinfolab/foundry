@@ -12,7 +12,9 @@ primary_region = "iad"
   force_https = true
   auto_stop_machines = "stop"
   auto_start_machines = true
-  min_machines_running = 0
+  # IMPORTANT: Keep at 1 so APScheduler stays alive and scan cycles aren't missed.
+  # Setting to 0 causes the VM to sleep between requests, killing all cron jobs.
+  min_machines_running = 1
 
   [http_service.concurrency]
     type = "connections"

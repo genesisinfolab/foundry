@@ -6,7 +6,7 @@ from app.models.watchlist import WatchlistItem
 from app.models.theme import Theme
 from app.services.watchlist_builder import WatchlistBuilder
 from app.services.structure_checker import StructureChecker
-from app.services.auth import require_supabase_token
+from app.services.auth import require_supabase_token, require_api_key
 
 router = APIRouter(prefix="/api/watchlist", tags=["watchlist"])
 
@@ -57,3 +57,18 @@ def refresh_watchlist(db: Session = Depends(get_db)):
     builder = WatchlistBuilder()
     builder.refresh_watchlist(db)
     return {"status": "ok"}
+
+
+@router.post("/deactivate/{symbol}")
+def deactivate_symbol(symbol: str, db: Session = Depends(get_db), _auth=Depends(require_api_key)):
+    """Deactivate a symbol from the watchlist (admin, requires OVERRIDE_API_KEY)."""
+    items = db.query(WatchlistItem).filter(
+        WatchlistItem.symbol == symbol.upper(),
+        WatchlistItem.active == True
+    ).all()
+    if not items:
+        return {"status": "not_found", "symbol": symbol.upper()}
+    for item in items:
+        item.active = False
+    db.commit()
+    return {"status": "deactivated", "symbol": symbol.upper(), "count": len(items)}

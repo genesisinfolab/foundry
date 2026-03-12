@@ -11,8 +11,26 @@ from app.services.breakout_scanner import BreakoutScanner
 from app.services.trade_executor import TradeExecutor
 from app.services.risk_manager import RiskManager
 from app.services.auth import require_api_key
+from app.services.notifier import notify_scan_summary, notify_health_check, _send
 
 router = APIRouter(prefix="/api/pipeline", tags=["pipeline"])
+
+
+@router.post("/notify-test")
+def test_notification(_auth=Depends(require_api_key)):
+    """Send a test WhatsApp notification. Use to verify the notification path is working."""
+    import datetime
+    from app.config import get_settings
+    s = get_settings()
+    msg = f"FOUNDRY TEST — notification path verified at {datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}"
+    sent = _send(msg)
+    return {
+        "sent": sent,
+        "whatsapp_number_configured": bool(s.whatsapp_number),
+        "ultramsg_configured": bool(s.ultramsg_instance_id and s.ultramsg_token),
+        "callmebot_configured": bool(s.callmebot_api_key),
+        "message": "Check your WhatsApp — if sent=true, the notification path is working." if sent else "All notification methods failed. Check Fly.io secrets: WHATSAPP_NUMBER, CALLMEBOT_API_KEY or ULTRAMSG_INSTANCE_ID + ULTRAMSG_TOKEN.",
+    }
 
 
 @router.post("/run-scanner")
@@ -90,4 +108,21 @@ def run_full_pipeline(db: Session = Depends(get_db), _auth=Depends(require_api_k
     results["steps"].append({"step": "risk_management", "actions": len(risk_actions)})
 
     results["summary"] = rm.get_portfolio_summary(db)
+
+    # ── Notifications ────────────────────────────────────────────────────────
+    notify_scan_summary(len(active_themes), entries, entries)
+
+    try:
+        from app.services.health_check import run as health_run
+        health_results = health_run()
+        fails = [r for r in health_results if r["status"] == "FAIL"]
+        warns = [r for r in health_results if r["status"] == "WARN"]
+        overall = health_results[-1]["status"] if health_results else "UNKNOWN"
+        fail_details = [r["detail"][:80] for r in fails[:3]]
+        warn_details = [r["detail"][:80] for r in warns[:2]]
+        notify_health_check(overall, len(fails), len(warns), fail_details, warn_details)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Post-pipeline health check failed: {e}")
+
     return results

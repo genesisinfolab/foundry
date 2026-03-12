@@ -1,6 +1,19 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+// Comma-separated list of emails allowed to access the dashboard.
+// Set ALLOWED_EMAILS in Vercel env. Defaults to the owner.
+const ALLOWED: string[] = (
+  process.env.ALLOWED_EMAILS ?? "info@genesis-analytics.io"
+)
+  .split(",")
+  .map((e) => e.trim().toLowerCase())
+  .filter(Boolean);
+
+function isAllowed(email: string | undefined | null): boolean {
+  return ALLOWED.includes((email ?? "").toLowerCase());
+}
+
 export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
@@ -29,18 +42,28 @@ export async function proxy(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Protect /dashboard — redirect unauthenticated users to /login
-  if (!user && request.nextUrl.pathname.startsWith("/dashboard")) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/login";
-    return NextResponse.redirect(url);
+  const pathname = request.nextUrl.pathname;
+
+  // ── /dashboard — must be authenticated AND on the allowlist ──────────────
+  if (pathname.startsWith("/dashboard")) {
+    if (!user || !isAllowed(user.email)) {
+      return NextResponse.redirect(new URL("/waitlist", request.url));
+    }
   }
 
-  // Redirect authenticated users away from /login
-  if (user && request.nextUrl.pathname === "/login") {
-    const url = request.nextUrl.clone();
-    url.pathname = "/dashboard";
-    return NextResponse.redirect(url);
+  // ── /login — skip form for already-authorized users; block others ─────────
+  if (pathname === "/login") {
+    if (user && isAllowed(user.email)) {
+      const dest =
+        process.env.NEXT_PUBLIC_DASHBOARD_URL ||
+        "http://localhost:8000/dashboard/";
+      return NextResponse.redirect(dest);
+    }
+    if (user && !isAllowed(user.email)) {
+      // Authenticated but not authorized — send to waitlist
+      return NextResponse.redirect(new URL("/waitlist", request.url));
+    }
+    // Unauthenticated — show the login form (owner needs this to sign in)
   }
 
   return supabaseResponse;

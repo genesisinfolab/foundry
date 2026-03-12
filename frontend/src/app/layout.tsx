@@ -1,8 +1,12 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 
-const inter = Inter({ subsets: ["latin"] });
+const protoMono = localFont({
+  src: "../../public/fonts/ProtoMono-Regular.otf",
+  variable: "--font-proto-mono",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "Foundry",
@@ -11,8 +15,15 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className="dark">
-      <body className={`${inter.className} min-h-screen`} style={{ backgroundColor: '#0a0a0f', color: '#f0f0f8' }}>
+    <html lang="en" className={protoMono.variable}>
+      <body
+        className="min-h-screen"
+        style={{
+          backgroundColor: "#F5F5F7",
+          color: "#1D1D1F",
+          fontFamily: "var(--font-proto-mono), 'SF Mono', 'Fira Code', 'Consolas', monospace",
+        }}
+      >
         {children}
       </body>
     </html>

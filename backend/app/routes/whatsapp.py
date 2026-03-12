@@ -13,14 +13,13 @@ Commands (case-insensitive):
   RESUME             — re-enable new entries
   STATUS             — reply with live portfolio snapshot
 
-The endpoint accepts both JSON and form-encoded bodies so it works with
-wacli webhooks and can be tested with a plain curl POST.
-
-To configure wacli to call this webhook when a message arrives:
-  wacli webhook set --url http://<host>:8001/api/whatsapp/webhook
+Production setup (Fly.io):
+  Configure UltraMsg webhook: Dashboard → Webhooks → set URL to
+    https://foundry-backend.fly.dev/api/whatsapp/webhook
+  UltraMsg sends JSON: {"event_type":"received","data":{"from":"18136193622","body":"STATUS"}}
 
 To test manually:
-  curl -X POST http://localhost:8001/api/whatsapp/webhook \
+  curl -X POST https://foundry-backend.fly.dev/api/whatsapp/webhook \
     -H 'Content-Type: application/json' \
     -d '{"from": "+18136193622", "text": "STATUS"}'
 """
@@ -44,18 +43,38 @@ _ALLOWED_SENDER = get_settings().whatsapp_number
 
 
 def _extract(payload: dict) -> tuple[str, str]:
-    """Return (sender, text) from a wacli or Twilio-style payload."""
+    """Return (sender, text) from wacli, UltraMsg, Twilio, or plain JSON payloads.
+
+    UltraMsg format: {"event_type":"received","data":{"from":"18136193622","body":"STATUS"}}
+    wacli/plain:     {"from":"+18136193622","text":"STATUS"}
+    Twilio:          {"From":"+18136193622","Body":"STATUS"}
+    """
+    # UltraMsg nests data under "data" key
+    data = payload.get("data", payload)
+    if not isinstance(data, dict):
+        data = payload
+
     sender = (
-        payload.get("from")
+        data.get("from")
+        or data.get("From")
+        or data.get("sender")
+        or payload.get("from")
         or payload.get("From")
-        or payload.get("sender")
         or ""
     ).strip()
+
+    # Normalize: strip whatsapp: prefix if present (some providers add it)
+    sender = sender.removeprefix("whatsapp:").strip()
+
     text = (
-        payload.get("text")
+        data.get("body")
+        or data.get("text")
+        or data.get("Body")
+        or data.get("message")
+        or payload.get("text")
         or payload.get("Body")
-        or payload.get("message")
         or payload.get("body")
+        or payload.get("message")
         or ""
     ).strip()
     return sender, text

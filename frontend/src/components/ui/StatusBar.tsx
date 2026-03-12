@@ -4,9 +4,8 @@ import { useEffect, useState } from "react";
 
 function isMarketOpen(): boolean {
   const now = new Date();
-  const day = now.getUTCDay(); // 0 = Sun, 6 = Sat
+  const day = now.getUTCDay();
   if (day === 0 || day === 6) return false;
-  // Approximate ET as UTC-4 (EDT); off by 1h during EST — acceptable for display
   const etHour = (now.getUTCHours() - 4 + 24) % 24;
   const etTime = etHour * 60 + now.getUTCMinutes();
   return etTime >= 9 * 60 + 30 && etTime < 16 * 60;
@@ -31,7 +30,7 @@ export default function StatusBar() {
   return (
     <div
       className="fixed top-0 left-0 right-0 z-50 h-10 flex items-center justify-between px-6"
-      style={{ backgroundColor: "#0d0d14", borderBottom: "1px solid #1e1e2e" }}
+      style={{ backgroundColor: "#FFFFFF", borderBottom: "1px solid #D2D2D7" }}
     >
       {/* Left */}
       <div className="flex items-center gap-4">
@@ -39,34 +38,31 @@ export default function StatusBar() {
           <span className="relative flex h-2 w-2">
             <span
               className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75"
-              style={{ backgroundColor: "#00d4aa" }}
+              style={{ backgroundColor: "#34C759" }}
             />
             <span
               className="relative inline-flex rounded-full h-2 w-2"
-              style={{ backgroundColor: "#00d4aa" }}
+              style={{ backgroundColor: "#34C759" }}
             />
           </span>
           <span
             className="text-[10px] font-semibold tracking-[0.15em] uppercase"
-            style={{ color: "#00d4aa" }}
+            style={{ color: "#34C759" }}
           >
             SYSTEM ONLINE
           </span>
         </div>
 
-        <span style={{ color: "#2a2a3e" }}>|</span>
+        <span style={{ color: "#D2D2D7" }}>|</span>
 
         <div className="flex items-center gap-2">
           <span
             className="relative inline-flex rounded-full h-2 w-2"
-            style={{
-              backgroundColor: marketOpen ? "#00d4aa" : "#ff4d6d",
-              boxShadow: marketOpen ? "0 0 6px rgba(0,212,170,0.6)" : "none",
-            }}
+            style={{ backgroundColor: marketOpen ? "#34C759" : "#FF3B30" }}
           />
           <span
             className="text-[10px] font-medium tracking-[0.1em] uppercase"
-            style={{ color: marketOpen ? "#00d4aa" : "#8888aa" }}
+            style={{ color: marketOpen ? "#34C759" : "#6E6E73" }}
           >
             MARKET {marketOpen ? "OPEN" : "CLOSED"}
           </span>
@@ -76,7 +72,7 @@ export default function StatusBar() {
       {/* Center */}
       <div
         className="text-[11px] font-semibold tracking-[0.2em] uppercase absolute left-1/2 -translate-x-1/2"
-        style={{ color: "#f0f0f8" }}
+        style={{ color: "#1D1D1F" }}
       >
         NEWMAN TRADING SYSTEM v1.0
       </div>
@@ -85,13 +81,13 @@ export default function StatusBar() {
       <div className="flex items-center gap-2">
         <span
           className="text-xs font-mono tabular-nums"
-          style={{ color: "#f0f0f8", fontVariantNumeric: "tabular-nums" }}
+          style={{ color: "#1D1D1F", fontVariantNumeric: "tabular-nums" }}
         >
           {time || "00:00:00"}
         </span>
         <span
           className="text-[10px] font-medium px-1.5 py-0.5 rounded"
-          style={{ color: "#8888aa", backgroundColor: "#1e1e2e" }}
+          style={{ color: "#6E6E73", backgroundColor: "#F5F5F7", border: "1px solid #D2D2D7" }}
         >
           UTC
         </span>

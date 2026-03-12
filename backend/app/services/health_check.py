@@ -113,17 +113,18 @@ def run(scan_stats: dict | None = None) -> list[dict]:
             results.append(_check("H2_claude_circuit", WARN, f"Check failed: {e}"))
 
         # ── H3: Equity curve baseline ────────────────────────────────────────
+        # Now uses dynamic starting capital from Alpaca — just verify API connectivity
         try:
             from app.integrations.alpaca_client import AlpacaClient
             acct = AlpacaClient().get_account()
             pv = acct.get("portfolio_value") if acct else None
-            if pv and abs(float(pv) - 100_000) > 5_000:
-                results.append(_check("H3_equity_baseline", WARN,
-                    f"Account portfolio_value=${float(pv):,.0f} but equity curve hardcoded to $100,000 — "
-                    f"drawdown % on dashboard will be off by {abs(float(pv)-100000)/1000:.0f}k"))
-            else:
+            if pv:
                 results.append(_check("H3_equity_baseline", OK,
-                    f"Account portfolio_value=${float(pv or 100000):,.0f} (≈$100k baseline — within tolerance)"))
+                    f"Alpaca account reachable — portfolio_value=${float(pv):,.0f} "
+                    f"(dynamic baseline, no hardcoded mismatch)"))
+            else:
+                results.append(_check("H3_equity_baseline", WARN,
+                    "Alpaca account returned no portfolio_value"))
         except Exception as e:
             results.append(_check("H3_equity_baseline", WARN, f"Alpaca account check failed: {e}"))
 

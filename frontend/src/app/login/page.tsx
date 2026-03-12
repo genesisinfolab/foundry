@@ -1,12 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 
 export default function LoginPage() {
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -16,12 +14,25 @@ export default function LoginPage() {
     e.preventDefault();
     setError(null);
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
       setError(error.message);
       setLoading(false);
     } else {
-      router.push("/dashboard");
+      // Let the middleware decide — redirect to /login so it re-evaluates the session.
+      // Authorized users get forwarded to the dashboard; everyone else goes to /waitlist.
+      const signedInEmail = data.user?.email ?? "";
+      const allowed = (process.env.NEXT_PUBLIC_ALLOWED_EMAILS ?? "info@genesis-analytics.io")
+        .split(",")
+        .map((e) => e.trim().toLowerCase())
+        .includes(signedInEmail.toLowerCase());
+      if (allowed) {
+        const dest = process.env.NEXT_PUBLIC_DASHBOARD_URL || "http://localhost:8000/dashboard/";
+        window.location.href = dest;
+      } else {
+        await supabase.auth.signOut();
+        window.location.href = "/waitlist";
+      }
     }
   }
 
@@ -33,10 +44,10 @@ export default function LoginPage() {
       {/* Back to home */}
       <a
         href="/"
-        className="fixed top-6 left-6 text-sm font-medium transition-opacity hover:opacity-70"
-        style={{ color: "var(--color-nt-secondary)" }}
+        className="fixed top-6 left-6 transition-opacity hover:opacity-70"
+        style={{ color: "#AEAEB2", fontSize: "13px", fontWeight: "600" }}
       >
-        ← Foundry
+        Foundry
       </a>
 
       <Card

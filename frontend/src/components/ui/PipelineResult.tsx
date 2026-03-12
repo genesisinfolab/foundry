@@ -25,27 +25,27 @@ export default function PipelineResultComponent({ result }: Props) {
   return (
     <div
       className="rounded-xl p-5 animate-fade-in"
-      style={{ backgroundColor: "#111118", border: "1px solid #1e1e2e" }}
+      style={{ backgroundColor: "#FFFFFF", border: "1px solid #D2D2D7" }}
     >
       <div className="flex items-center gap-3 mb-4">
         <span
           className="text-xs font-semibold uppercase tracking-wider"
-          style={{ color: "#00d4aa" }}
+          style={{ color: "#34C759" }}
         >
           Pipeline Complete
         </span>
         <span
           className="text-[10px] px-2 py-0.5 rounded-full font-medium"
           style={{
-            backgroundColor: "rgba(0,212,170,0.1)",
-            color: "#00d4aa",
+            backgroundColor: "rgba(52,199,89,0.1)",
+            color: "#34C759",
           }}
         >
           {steps.length} steps
         </span>
         <button
-          className="ml-auto text-[11px] px-2 py-1 rounded transition-colors"
-          style={{ color: "#444466", backgroundColor: "#16161f" }}
+          className="ml-auto text-[11px] px-2 py-1 rounded transition-opacity hover:opacity-70"
+          style={{ color: "#6E6E73", backgroundColor: "#F5F5F7", border: "1px solid #D2D2D7" }}
           onClick={() => setExpanded(new Set())}
         >
           Collapse all
@@ -53,10 +53,9 @@ export default function PipelineResultComponent({ result }: Props) {
       </div>
 
       <div className="relative">
-        {/* Vertical connector line */}
         <div
           className="absolute left-[7px] top-4 bottom-4 w-px"
-          style={{ backgroundColor: "#1e1e2e" }}
+          style={{ backgroundColor: "#D2D2D7" }}
         />
 
         <div className="space-y-1">
@@ -70,48 +69,46 @@ export default function PipelineResultComponent({ result }: Props) {
               <div key={i}>
                 <div
                   className="flex items-center gap-3 py-2 px-3 rounded-lg cursor-pointer transition-colors"
-                  style={{
-                    backgroundColor: isOpen ? "#16161f" : "transparent",
-                  }}
+                  style={{ backgroundColor: isOpen ? "#F5F5F7" : "transparent" }}
                   onClick={() => hasDetails && toggle(i)}
                 >
                   <div className="relative z-10 flex-shrink-0">
                     {isErr ? (
-                      <XCircle size={16} style={{ color: "#ff4d6d" }} />
+                      <XCircle size={16} style={{ color: "#FF3B30" }} />
                     ) : (
-                      <CheckCircle2 size={16} style={{ color: "#00d4aa" }} />
+                      <CheckCircle2 size={16} style={{ color: "#34C759" }} />
                     )}
                   </div>
 
                   <span
                     className="flex-1 text-sm font-medium"
-                    style={{ color: isErr ? "#ff4d6d" : "#f0f0f8" }}
+                    style={{ color: isErr ? "#FF3B30" : "#1D1D1F" }}
                   >
                     {name}
                   </span>
 
                   {error && (
-                    <span className="text-xs truncate max-w-xs" style={{ color: "#ff4d6d" }}>
+                    <span className="text-xs truncate max-w-xs" style={{ color: "#FF3B30" }}>
                       {String(error)}
                     </span>
                   )}
 
                   {hasDetails &&
                     (isOpen ? (
-                      <ChevronDown size={12} style={{ color: "#444466" }} />
+                      <ChevronDown size={12} style={{ color: "#C7C7CC" }} />
                     ) : (
-                      <ChevronRight size={12} style={{ color: "#444466" }} />
+                      <ChevronRight size={12} style={{ color: "#C7C7CC" }} />
                     ))}
                 </div>
 
                 {isOpen && hasDetails && (
                   <div
                     className="ml-9 mb-2 p-3 rounded-lg"
-                    style={{ backgroundColor: "#0d0d14", border: "1px solid #1e1e2e" }}
+                    style={{ backgroundColor: "#F5F5F7", border: "1px solid #D2D2D7" }}
                   >
                     <pre
                       className="text-[11px]"
-                      style={{ color: "#8888aa", whiteSpace: "pre-wrap", wordBreak: "break-word" }}
+                      style={{ color: "#6E6E73", whiteSpace: "pre-wrap", wordBreak: "break-word" }}
                     >
                       {JSON.stringify(rest, null, 2)}
                     </pre>

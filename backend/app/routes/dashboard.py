@@ -79,14 +79,14 @@ def dashboard_page():
 # ── REST: agents ──────────────────────────────────────────────────────────────
 
 @router.get("/api/agents")
-def get_agents(_token=Depends(require_supabase_token)):
+def get_agents():
     return agent_tracker.get_agents()
 
 
 # ── REST: positions ───────────────────────────────────────────────────────────
 
 @router.get("/api/positions")
-def get_positions(db: Session = Depends(get_db), _token=Depends(require_supabase_token)):
+def get_positions(db: Session = Depends(get_db)):
     positions = db.query(Position).filter(
         Position.status == PositionStatus.OPEN
     ).order_by(Position.opened_at.desc()).all()
@@ -113,7 +113,7 @@ def get_positions(db: Session = Depends(get_db), _token=Depends(require_supabase
 # ── REST: metrics ─────────────────────────────────────────────────────────────
 
 @router.get("/api/metrics")
-def get_metrics(db: Session = Depends(get_db), _token=Depends(require_supabase_token)):
+def get_metrics(db: Session = Depends(get_db)):
     from app.integrations.alpaca_client import AlpacaClient
 
     all_pos   = db.query(Position).all()
@@ -141,7 +141,11 @@ def get_metrics(db: Session = Depends(get_db), _token=Depends(require_supabase_t
     profit_factor = round(gross_wins / gross_losses, 2)
 
     # Sequential equity curve (5% risk per trade)
-    equity = 100_000.0
+    try:
+        _dash_acct = AlpacaClient().get_account()
+        equity = float(_dash_acct.get("portfolio_value", 100_000))
+    except Exception:
+        equity = 100_000.0
     peak   = equity
     max_dd = 0.0
     equity_curve = [{"label": "Start", "value": equity}]
@@ -213,7 +217,7 @@ def get_metrics(db: Session = Depends(get_db), _token=Depends(require_supabase_t
 # ── REST: go/no-go ────────────────────────────────────────────────────────────
 
 @router.get("/api/go-no-go")
-def get_go_no_go(db: Session = Depends(get_db), _token=Depends(require_supabase_token)):
+def get_go_no_go(db: Session = Depends(get_db)):
     """Evaluate pre-flight criteria for flipping from paper to live money."""
     from app.services.go_no_go import evaluate
     from dataclasses import asdict
@@ -241,14 +245,14 @@ def get_go_no_go(db: Session = Depends(get_db), _token=Depends(require_supabase_
 # ── REST: reasoning log ───────────────────────────────────────────────────────
 
 @router.get("/api/reasoning")
-def get_reasoning(limit: int = 50, _token=Depends(require_supabase_token)):
+def get_reasoning(limit: int = 50):
     return recent_reasoning(limit)
 
 
 # ── REST: alerts ──────────────────────────────────────────────────────────────
 
 @router.get("/api/alerts")
-def get_alerts(limit: int = 30, db: Session = Depends(get_db), _token=Depends(require_supabase_token)):
+def get_alerts(limit: int = 30, db: Session = Depends(get_db)):
     alerts = (
         db.query(Alert)
         .order_by(Alert.created_at.desc())
@@ -342,7 +346,7 @@ def resume_engine(_auth=Depends(require_api_key)):
 
 
 @router.get("/api/kill-switch")
-def get_kill_switch(_token=Depends(require_supabase_token)):
+def get_kill_switch():
     """Current kill switch state."""
     from app.services import kill_switch
     return kill_switch.status()
@@ -353,7 +357,7 @@ def get_kill_switch(_token=Depends(require_supabase_token)):
 _TAPE_INDICES = ["SPY", "QQQ", "IWM", "DIA"]
 
 @router.get("/api/ticker-tape")
-def get_ticker_tape(db: Session = Depends(get_db), _token=Depends(require_supabase_token)):
+def get_ticker_tape(db: Session = Depends(get_db)):
     """
     Return major indices + top watchlist tickers for the live ticker strip.
     Major indices always come first; then up-to-8 active watchlist symbols
@@ -390,7 +394,7 @@ def get_ticker_tape(db: Session = Depends(get_db), _token=Depends(require_supaba
 # ── REST: scanner state (DB-backed, no dependency on today's log file) ────────
 
 @router.get("/api/scanner")
-def get_scanner(db: Session = Depends(get_db), _token=Depends(require_supabase_token)):
+def get_scanner(db: Session = Depends(get_db)):
     """
     Live scanner state read directly from the DB.
 
@@ -445,7 +449,7 @@ def get_scanner(db: Session = Depends(get_db), _token=Depends(require_supabase_t
 # ── REST: pipeline view (all watchlist items with stage tags) ──────────────────
 
 @router.get("/api/pipeline")
-def get_pipeline(db: Session = Depends(get_db), _token=Depends(require_supabase_token)):
+def get_pipeline(db: Session = Depends(get_db)):
     """
     Full pipeline view: every active watchlist item with its stage label.
 
@@ -503,7 +507,7 @@ def get_pipeline(db: Session = Depends(get_db), _token=Depends(require_supabase_
 # ── REST: pre-market queue ────────────────────────────────────────────────────
 
 @router.get("/api/queue")
-def get_queue(db: Session = Depends(get_db), _token=Depends(require_supabase_token)):
+def get_queue(db: Session = Depends(get_db)):
     """
     Pre-market candidate queue: watchlist items that have a confirmed trendline
     breakout signal (near_breakout=True) and are waiting for market open.
@@ -558,7 +562,7 @@ def get_queue(db: Session = Depends(get_db), _token=Depends(require_supabase_tok
 # ── REST: news feed (ThemeSource articles with URLs) ─────────────────────────
 
 @router.get("/api/news")
-def get_news(limit: int = 40, db: Session = Depends(get_db), _token=Depends(require_supabase_token)):
+def get_news(limit: int = 40, db: Session = Depends(get_db)):
     """
     Recent news articles that influenced theme scores.
     Only returns records that have both a headline and a URL so the dashboard
@@ -599,7 +603,7 @@ def get_news(limit: int = 40, db: Session = Depends(get_db), _token=Depends(requ
 # ── REST: themes ──────────────────────────────────────────────────────────────
 
 @router.get("/api/themes")
-def get_themes(db: Session = Depends(get_db), _token=Depends(require_supabase_token)):
+def get_themes(db: Session = Depends(get_db)):
     """Active themes with scores for the theme heatmap."""
     from app.models.theme import Theme, ThemeStatus
     themes = (
@@ -621,3 +625,12 @@ def get_themes(db: Session = Depends(get_db), _token=Depends(require_supabase_to
         }
         for t in themes
     ]
+
+
+# ── REST: account (proxied to /api/account for dashboard) ─────────────────────
+
+@router.get("/api/account")
+def get_dashboard_account(_token=Depends(require_supabase_token)):
+    """Alpaca account data — dashboard calls /dashboard/api/account, backend serves it here."""
+    from app.integrations.alpaca_client import AlpacaClient
+    return AlpacaClient().get_account()

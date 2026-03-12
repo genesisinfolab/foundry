@@ -46,20 +46,20 @@
   --radius-3xl: calc(var(--radius) + 12px);
   --radius-4xl: calc(var(--radius) + 16px);
 
-  /* Newman Trading System */
-  --color-nt-bg: #0a0a0f;
-  --color-nt-surface: #111118;
-  --color-nt-elevated: #16161f;
-  --color-nt-border: #1e1e2e;
-  --color-nt-border-accent: #2a2a3e;
-  --color-nt-green: #00d4aa;
-  --color-nt-red: #ff4d6d;
-  --color-nt-blue: #4d9fff;
-  --color-nt-amber: #fbbf24;
-  --color-nt-purple: #a78bfa;
-  --color-nt-text: #f0f0f8;
-  --color-nt-secondary: #8888aa;
-  --color-nt-muted: #444466;
+  /* Newman Trading System — Apple light palette */
+  --color-nt-bg: #F5F5F7;
+  --color-nt-surface: #FFFFFF;
+  --color-nt-elevated: #F5F5F7;
+  --color-nt-border: #D2D2D7;
+  --color-nt-border-accent: #C7C7CC;
+  --color-nt-green: #34C759;
+  --color-nt-red: #FF3B30;
+  --color-nt-blue: #0066CC;
+  --color-nt-amber: #FF9500;
+  --color-nt-purple: #0066CC;
+  --color-nt-text: #1D1D1F;
+  --color-nt-secondary: #6E6E73;
+  --color-nt-muted: #C7C7CC;
 }
 
 :root {
@@ -137,6 +137,7 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
   }
 }
 
@@ -144,18 +145,18 @@
 @keyframes pulse-glow {
   0%, 100% {
     opacity: 1;
-    box-shadow: 0 0 4px 1px rgba(0, 212, 170, 0.5);
+    box-shadow: 0 0 4px 1px rgba(52, 199, 89, 0.5);
   }
   50% {
     opacity: 0.8;
-    box-shadow: 0 0 10px 3px rgba(0, 212, 170, 0.8);
+    box-shadow: 0 0 10px 3px rgba(52, 199, 89, 0.8);
   }
 }
 
 @keyframes pulse-ring {
-  0% { box-shadow: 0 0 0 0 rgba(0, 212, 170, 0.4); }
-  70% { box-shadow: 0 0 0 6px rgba(0, 212, 170, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(0, 212, 170, 0); }
+  0% { box-shadow: 0 0 0 0 rgba(52, 199, 89, 0.4); }
+  70% { box-shadow: 0 0 0 6px rgba(52, 199, 89, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(52, 199, 89, 0); }
 }
 
 @keyframes shimmer {
@@ -179,23 +180,21 @@
 }
 
 .skeleton {
-  background: linear-gradient(90deg, #111118 25%, #16161f 50%, #111118 75%);
+  background: linear-gradient(90deg, #E8E8ED 25%, #F5F5F7 50%, #E8E8ED 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s ease-in-out infinite;
 }
 
 .card-glow:hover {
-  box-shadow: 0 0 0 1px rgba(0, 212, 170, 0.15), 0 8px 32px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 0 0 1px rgba(0, 102, 204, 0.15), 0 4px 16px rgba(0, 0, 0, 0.08);
 }
 
 .text-positive {
-  color: #00d4aa;
-  text-shadow: 0 0 8px rgba(0, 212, 170, 0.3);
+  color: #34C759;
 }
 
 .text-negative {
-  color: #ff4d6d;
-  text-shadow: 0 0 8px rgba(255, 77, 109, 0.3);
+  color: #FF3B30;
 }
 
 .animate-pulse-glow {
@@ -212,4 +211,17 @@
 
 .animate-fade-in {
   animation: fade-in 0.25s ease-out;
+}
+
+/* ── Animated background dot pattern ── */
+@keyframes bg-drift {
+  from { background-position: 0 0; }
+  to   { background-position: 40px 40px; }
+}
+
+.bg-dot-pattern {
+  background-image: radial-gradient(circle, rgba(29, 29, 31, 0.055) 1px, transparent 1px);
+  background-size: 40px 40px;
+  background-attachment: fixed;
+  animation: bg-drift 28s linear infinite;
 }

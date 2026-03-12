@@ -21,21 +21,21 @@ function getSeverityStyles(severity: string) {
     case "critical":
     case "action":
       return {
-        stripe: "#ff4d6d",
-        bg: "rgba(255,77,109,0.06)",
-        border: "rgba(255,77,109,0.25)",
+        stripe: "#FF3B30",
+        bg: "rgba(255,59,48,0.05)",
+        border: "rgba(255,59,48,0.2)",
       };
     case "warning":
       return {
-        stripe: "#fbbf24",
-        bg: "rgba(251,191,36,0.06)",
-        border: "rgba(251,191,36,0.25)",
+        stripe: "#FF9500",
+        bg: "rgba(255,149,0,0.05)",
+        border: "rgba(255,149,0,0.2)",
       };
     default:
       return {
-        stripe: "#4d9fff",
-        bg: "rgba(77,159,255,0.06)",
-        border: "rgba(77,159,255,0.25)",
+        stripe: "#0066CC",
+        bg: "rgba(0,102,204,0.05)",
+        border: "rgba(0,102,204,0.2)",
       };
   }
 }
@@ -61,14 +61,11 @@ export default function AlertCard({ alert, onAck }: AlertCardProps) {
       className="relative flex gap-3 rounded-xl p-4 transition-all duration-200 animate-slide-in"
       style={{
         backgroundColor: alert.acknowledged ? "transparent" : styles.bg,
-        borderTop: `1px solid ${alert.acknowledged ? "#1e1e2e" : styles.border}`,
-        borderRight: `1px solid ${alert.acknowledged ? "#1e1e2e" : styles.border}`,
-        borderBottom: `1px solid ${alert.acknowledged ? "#1e1e2e" : styles.border}`,
+        borderTop: `1px solid ${alert.acknowledged ? "#D2D2D7" : styles.border}`,
+        borderRight: `1px solid ${alert.acknowledged ? "#D2D2D7" : styles.border}`,
+        borderBottom: `1px solid ${alert.acknowledged ? "#D2D2D7" : styles.border}`,
         borderLeft: `3px solid ${styles.stripe}`,
         opacity: alert.acknowledged ? 0.45 : 1,
-        boxShadow: !alert.acknowledged
-          ? `0 0 0 1px ${styles.border} inset`
-          : "none",
       }}
     >
       <div className="flex-shrink-0 mt-0.5">
@@ -77,12 +74,12 @@ export default function AlertCard({ alert, onAck }: AlertCardProps) {
 
       <div className="flex-1 min-w-0">
         <div className="flex items-start justify-between gap-2 mb-1">
-          <span className="font-semibold text-sm" style={{ color: "#f0f0f8" }}>
+          <span className="font-semibold text-sm" style={{ color: "#1D1D1F" }}>
             {alert.title}
           </span>
           <span
             className="text-[11px] flex-shrink-0 tabular-nums"
-            style={{ color: "#444466", fontVariantNumeric: "tabular-nums" }}
+            style={{ color: "#C7C7CC", fontVariantNumeric: "tabular-nums" }}
           >
             {timeAgo}
           </span>
@@ -90,7 +87,7 @@ export default function AlertCard({ alert, onAck }: AlertCardProps) {
 
         <p
           className="text-xs leading-relaxed whitespace-pre-wrap"
-          style={{ color: "#8888aa" }}
+          style={{ color: "#6E6E73" }}
         >
           {alert.message}
         </p>
@@ -98,7 +95,7 @@ export default function AlertCard({ alert, onAck }: AlertCardProps) {
         {alert.symbol && (
           <span
             className="inline-block mt-2 text-[10px] px-2 py-0.5 rounded font-mono font-semibold"
-            style={{ backgroundColor: "#1e1e2e", color: "#4d9fff" }}
+            style={{ backgroundColor: "#F5F5F7", border: "1px solid #D2D2D7", color: "#0066CC" }}
           >
             {alert.symbol}
           </span>
@@ -108,18 +105,8 @@ export default function AlertCard({ alert, onAck }: AlertCardProps) {
       {!alert.acknowledged && (
         <button
           onClick={() => onAck(alert.id)}
-          className="flex-shrink-0 self-start flex items-center gap-1 px-2 py-1 text-[10px] font-medium rounded-md transition-colors"
-          style={{ color: "#8888aa", backgroundColor: "#1e1e2e" }}
-          onMouseEnter={(e) => {
-            const el = e.currentTarget as HTMLButtonElement;
-            el.style.color = "#f0f0f8";
-            el.style.backgroundColor = "#2a2a3e";
-          }}
-          onMouseLeave={(e) => {
-            const el = e.currentTarget as HTMLButtonElement;
-            el.style.color = "#8888aa";
-            el.style.backgroundColor = "#1e1e2e";
-          }}
+          className="flex-shrink-0 self-start flex items-center gap-1 px-2 py-1 text-[10px] font-medium rounded-md transition-opacity hover:opacity-70"
+          style={{ color: "#6E6E73", backgroundColor: "#F5F5F7", border: "1px solid #D2D2D7" }}
         >
           <Check size={10} />
           Read

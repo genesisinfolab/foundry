@@ -3,27 +3,47 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Citadel — Newman Trading</title>
+<title>Foundry — Trading Dashboard</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
+  @font-face {
+    font-family: 'Proto Mono';
+    src: url('https://foundry.markets/fonts/ProtoMono-Regular.otf') format('opentype');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+  }
+
   /* ── apple.com color palette ── */
   :root {
     --bg:       #F5F5F7;   /* Apple section gray */
     --surface:  #FFFFFF;   /* card white */
     --surface2: #F5F5F7;   /* subtle inner bg */
-    --border:   #D2D2D7;   /* Apple separator */
+    --border:   #E5E5EA;   /* Apple separator */
     --text:     #1D1D1F;   /* Apple Shark */
     --muted:    #6E6E73;   /* Apple secondary label */
     --blue:     #0066CC;   /* Apple Science Blue */
     --green:    #34C759;   /* Apple green */
     --red:      #FF3B30;   /* Apple red */
-    --orange:   #FF9500;   /* Apple orange */
+    --orange:   #FF9F0A;   /* Apple orange */
     --yellow:   #FFCC00;   /* Apple yellow */
     --purple:   #AF52DE;   /* Apple purple */
     --teal:     #32ADE6;   /* Apple teal */
     --danger:   #FF3B30;
     --tab-h:    44px;
     --radius:   12px;
+
+    /* ── foundry.markets token aliases ── */
+    --nt-bg:        #F5F5F7;
+    --nt-surface:   #FFFFFF;
+    --nt-text:      #1D1D1F;
+    --nt-secondary: #6E6E73;
+    --nt-muted:     #AEAEB2;
+    --nt-blue:      #0066CC;
+    --nt-border:    #E5E5EA;
+    --nt-success:   #34C759;
+    --nt-warning:   #FF9F0A;
+    --nt-danger:    #FF3B30;
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -31,7 +51,7 @@
   body {
     background: var(--bg);
     color: var(--text);
-    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    font-family: 'Proto Mono', 'SF Mono', 'Fira Code', 'Consolas', monospace;
     font-size: 13px;
     height: 100vh;
     display: flex;
@@ -911,7 +931,7 @@
 
 <!-- ── Header ── -->
 <div id="header">
-  <span class="brand">CITADEL</span>
+  <span class="brand">FOUNDRY</span>
   <span class="badge badge-paper" id="mode-badge">PAPER</span>
   <div class="hdr-sep"></div>
   <span class="stat">Portfolio <span id="hdr-portfolio">—</span></span>

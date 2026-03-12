@@ -1,7 +1,7 @@
 #!/bin/zsh
 # Newman Trading System — start backend + frontend with logs
 
-PROJ=/Users/agent/Projects/newmanMarch3
+PROJ="${PROJ:-$HOME/Projects/newmanMarch3}"
 LOG_DIR="$PROJ/logs"
 mkdir -p "$LOG_DIR"
 
@@ -16,7 +16,7 @@ sleep 1
 # ── Backend ─────────────────────────────────────────────────────────────────
 echo "Starting backend on :8000..."
 cd "$PROJ/backend"
-nohup "$PROJ/backend/.venv/bin/python" -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --log-level info \
+nohup "$PROJ/backend/venv/bin/python" -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --log-level info \
   >> "$LOG_DIR/backend.log" 2>&1 &
 BACKEND_PID=$!
 echo "Backend PID: $BACKEND_PID" | tee -a "$LOG_DIR/startup.log"

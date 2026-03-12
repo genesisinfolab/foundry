@@ -188,6 +188,48 @@ class AlpacaClient:
             return 0.0
         return sum(b["volume"] for b in bars) / len(bars)
 
+    # ── Portfolio History ─────────────────────────────────────
+    def get_portfolio_history(self, days: int = 30) -> list[dict]:
+        """
+        Fetch daily portfolio history from Alpaca via direct REST call.
+        Returns list of {date: str, equity_pct: float} sorted by date.
+        equity_pct is cumulative return % from account's starting value.
+        Uses direct HTTP to avoid SDK version compatibility issues.
+        """
+        import json
+        import urllib.request
+        from datetime import datetime, timezone
+
+        s = get_settings()
+        base_url = "https://paper-api.alpaca.markets" if s.alpaca_paper else "https://api.alpaca.markets"
+        url = f"{base_url}/v2/account/portfolio/history?timeframe=1D&period={days}D&extended_hours=false"
+        try:
+            req = urllib.request.Request(url, headers={
+                "APCA-API-KEY-ID": s.alpaca_api_key_id,
+                "APCA-API-SECRET-KEY": s.alpaca_api_secret_key,
+            })
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                data = json.loads(resp.read().decode())
+
+            timestamps = data.get("timestamp") or []
+            equities = data.get("equity") or []
+            base = float(data.get("base_value") or 0)
+
+            if not timestamps or base <= 0:
+                return []
+
+            seen: dict[str, float] = {}
+            for ts, eq in zip(timestamps, equities):
+                if eq is None:
+                    continue
+                date_str = datetime.fromtimestamp(int(ts), tz=timezone.utc).strftime("%Y-%m-%d")
+                seen[date_str] = round((float(eq) - base) / base * 100, 4)
+
+            return [{"date": d, "equity_pct": p} for d, p in sorted(seen.items())]
+        except Exception as e:
+            logger.warning(f"Alpaca portfolio history failed: {e}")
+            return []
+
     # ── Asset Search ─────────────────────────────────────────
     def search_assets(self, status: str = "active") -> list[dict]:
         req = GetAssetsRequest(asset_class=AssetClass.US_EQUITY, status=status)

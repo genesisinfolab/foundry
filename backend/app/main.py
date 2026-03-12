@@ -48,26 +48,54 @@ async def lifespan(app: FastAPI):
                 "error":       None,
             }
 
-    # Start WhatsApp listener (polls wacli DB for incoming commands)
-    from app.services.whatsapp_listener import WhatsAppListener
-    from app.services.notifier import _to_jid
+    # WhatsApp inbound commands:
+    # - In production (Fly.io): configure UltraMsg/Twilio webhook → POST /api/whatsapp/webhook
+    #   The webhook endpoint is always active and production-ready.
+    # - Locally with wacli installed: also start the polling listener as a convenience.
+    import shutil
     _wa_number = settings.whatsapp_number
     _wa_listener = None
     if _wa_number:
-        _wa_listener = WhatsAppListener(owner_jid=_to_jid(_wa_number))
-        _wa_listener.start()
-        logger.info("WhatsApp listener started.")
+        if shutil.which("wacli"):
+            from app.services.whatsapp_listener import WhatsAppListener
+            from app.services.notifier import _to_jid
+            _wa_listener = WhatsAppListener(owner_jid=_to_jid(_wa_number))
+            _wa_listener.start()
+            logger.info("WhatsApp listener started (wacli polling — local mode).")
+        else:
+            logger.info(
+                "WhatsApp inbound via webhook only — wacli not found. "
+                "Configure UltraMsg/Twilio to POST to /api/whatsapp/webhook in production."
+            )
     else:
         logger.warning("WHATSAPP_NUMBER not set — incoming WhatsApp commands disabled.")
 
-    scheduler.start()
-    logger.info("Scheduler started. Scanning will run during market hours.")
+    # Notification method check
+    if settings.ultramsg_instance_id and settings.ultramsg_token:
+        logger.info("Notifications: UltraMsg HTTP (production-ready)")
+    elif settings.callmebot_api_key:
+        logger.info("Notifications: CallMeBot HTTP (production-ready)")
+    else:
+        import shutil
+        if shutil.which("wacli"):
+            logger.info("Notifications: wacli (local only — set ULTRAMSG_INSTANCE_ID + ULTRAMSG_TOKEN for production)")
+        elif shutil.which("openclaw"):
+            logger.info("Notifications: openclaw fallback (local only — set ULTRAMSG_INSTANCE_ID + ULTRAMSG_TOKEN for production)")
+        else:
+            logger.error("Notifications: NO METHOD CONFIGURED — trades will be silent. Set ULTRAMSG_INSTANCE_ID + ULTRAMSG_TOKEN.")
+
+    if settings.enable_scheduler:
+        scheduler.start()
+        logger.info("Scheduler started. Scanning will run during market hours.")
+    else:
+        logger.info("Scheduler DISABLED (ENABLE_SCHEDULER=false) — API-only mode.")
     yield
     # Shutdown
     if _wa_listener:
         _wa_listener.stop()
-    scheduler.shutdown()
-    logger.info("Newman Trading System stopped.")
+    if settings.enable_scheduler:
+        scheduler.shutdown()
+    logger.info("Foundry stopped.")
 
 
 app = FastAPI(
@@ -75,15 +103,17 @@ app = FastAPI(
     description="Sector-breakout trading — systematically identified, automatically executed.",
     version="1.0.0",
     lifespan=lifespan,
+    redirect_slashes=False,
 )
 
 # CORS for frontend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:3000", "http://127.0.0.1:3000",
-        "https://*.loca.lt", "https://*.vercel.app",
-        "https://foundry.markets", "https://www.foundry.markets",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "https://foundry.markets",
+        "https://www.foundry.markets",
     ],
     allow_credentials=True,
     allow_methods=["*"],
