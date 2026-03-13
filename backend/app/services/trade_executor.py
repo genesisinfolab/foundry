@@ -32,8 +32,8 @@ from app.services import agent_tracker
 
 logger = logging.getLogger(__name__)
 
-_WATCH_MINUTES   = 15    # how long to monitor post-entry
-_WATCH_POLL_SECS = 60    # price poll interval during watch window
+_WATCH_MINUTES   = 5     # how long to monitor post-entry (Test A: 15→5)
+_WATCH_POLL_SECS = 30    # price poll interval during watch window (Test A: 60→30)
 
 
 def _watch_immediately_wrong(
@@ -57,14 +57,14 @@ def _watch_immediately_wrong(
     from app.models.position import Position, PositionAction, PositionStatus
     from app.models.alert import Alert
 
-    threshold   = entry_price - atr          # 1×ATR below entry
+    threshold   = entry_price - (2.0 * atr)   # 2×ATR below entry (Test A: was 1×ATR)
     deadline    = time.monotonic() + _WATCH_MINUTES * 60
     alpaca      = AlpacaClient()
     agent_name  = f"immediately_wrong:{symbol}"
 
     agent_tracker.spawn(agent_name,
-        f"{symbol}: watching {_WATCH_MINUTES}min | exit if < ${threshold:.3f} (1×ATR=${atr:.3f})")
-    logger.info(f"WATCH START {symbol}: entry=${entry_price:.3f} threshold=${threshold:.3f} ATR={atr:.3f}")
+        f"{symbol}: watching {_WATCH_MINUTES}min | exit if < ${threshold:.3f} (2×ATR=${atr:.3f})")
+    logger.info(f"WATCH START {symbol}: entry=${entry_price:.3f} threshold=${threshold:.3f} ATR={atr:.3f} (2×ATR)")
 
     while time.monotonic() < deadline:
         time.sleep(_WATCH_POLL_SECS)
@@ -124,7 +124,7 @@ def _watch_immediately_wrong(
                              "sector": False, "catalyst": False},
                     conviction=0,
                     notes=(
-                        f"Price ${current:.3f} crossed below entry−1×ATR threshold ${threshold:.3f} "
+                        f"Price ${current:.3f} crossed below entry−2×ATR threshold ${threshold:.3f} "
                         f"within {_WATCH_MINUTES - remaining:.0f} minutes of entry. "
                         f"Newman rule: exit immediately when direction is wrong from the start."
                     ),
@@ -148,8 +148,8 @@ def _watch_immediately_wrong(
                     qty=pos.qty,
                     price=current,
                     reason=(
-                        f"Immediately wrong: ${current:.3f} < entry−1×ATR "
-                        f"(${entry_price:.3f} − ${atr:.3f} = ${threshold:.3f})"
+                        f"Immediately wrong: ${current:.3f} < entry−2×ATR "
+                        f"(${entry_price:.3f} − 2×${atr:.3f} = ${threshold:.3f})"
                     ),
                     alpaca_order_id=order_id,
                 ))

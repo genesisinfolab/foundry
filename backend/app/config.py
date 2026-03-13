@@ -82,10 +82,11 @@ class Settings(BaseSettings):
     starter_position_usd: float = 2500.0
     max_single_position_pct: float = 0.35
     max_theme_exposure_pct: float = 0.60
-    stop_loss_pct: float = -0.05
-    profit_take_tiers: list[float] = [0.15, 0.30, 0.45]
+    stop_loss_pct: float = -0.08  # Test A: was -0.05 (wider leash for penny stock noise)
+    profit_take_tiers: list[float] = [0.10, 0.25, 0.50]  # Test A: was [0.15, 0.30, 0.45]
     max_pyramid_levels: int = 4
     stopped_out_cooldown_hours: float = 24.0  # Hours to block re-entry after a stop-out
+    active_strategies: str = "newman"  # Comma-separated strategy IDs: newman,golden
 
     @model_validator(mode="after")
     def _warn_missing_critical_vars(self) -> "Settings":

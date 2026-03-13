@@ -51,41 +51,31 @@ def get_active_strategies() -> list:
 
 
 def run_golden_scan_cycle():
-    """Golden strategy scan cycle stub — runs research + flags conviction candidates.
+    """Golden strategy scan cycle — runs full screening/scoring via GoldenScanner.
 
-    Does NOT execute trades until golden_scanner service is fully implemented.
-    Currently: logs strategy config, identifies sector universe, and flags
-    watchlist candidates matching Golden's screening criteria.
+    Computes correction_score, fetches 13F + ARK holdings, scores candidates,
+    and flags qualified entries. Does NOT execute trades automatically yet —
+    logs candidates to reasoning_log for review.
     """
     logger.info("Starting Golden strategy scan cycle...")
-    strategy = GoldenStrategy()
-    sc = strategy.get_screening_criteria()
-    ec = strategy.get_entry_criteria()
-    logger.info(
-        f"Golden scan | sectors={sc.sectors} | "
-        f"price_range=[{sc.min_price}, {sc.max_price}(soft)] | "
-        f"correction_score_min={ec['correction_score_min']} | "
-        f"cross_ref={ec['cross_reference_sources']}"
-    )
-    db = SessionLocal()
+    from app.services.golden_scanner import GoldenScanner
     try:
-        # Phase 1 (stub): Log strategy parameters — full scanner in next build phase
-        # TODO: implement GoldenScanner service that:
-        #   1. Fetches Situational Awareness LP 13F holdings from SEC EDGAR
-        #   2. Fetches ARK daily holdings from ark-funds.com
-        #   3. Computes correction_score from SPY drawdown vs 52-week high
-        #   4. Screens watchlist items matching golden sectors + price filter
-        #   5. Scores candidates on conviction_tier and logs to DB
+        scanner = GoldenScanner()
+        result = scanner.run_scan()
         logger.info(
-            f"Golden scan stub complete | strategy={strategy.strategy_name} | "
-            f"Situational Awareness holdings tracked: {len([])} | "
-            f"ARK ETFs tracked: {len([])} | "
-            "Full scanner implementation pending next build phase."
+            f"Golden scan complete | correction={result['correction'].get('score', '?')}/100 | "
+            f"universe={result['universe_size']} | "
+            f"qualified={result['qualified_count']}/{result['candidates_scored']} | "
+            f"duration={result['scan_duration_secs']}s"
         )
+        if result["qualified"]:
+            top = result["qualified"][:5]
+            logger.info(
+                f"Golden top candidates: "
+                + ", ".join(f"{c['symbol']}({c['tier']}, {c['conviction_score']:.2f})" for c in top)
+            )
     except Exception as e:
         logger.error(f"Golden scan cycle failed: {e}")
-    finally:
-        db.close()
 
 
 def run_scan_cycle():
