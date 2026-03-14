@@ -1,0 +1,98 @@
+
+============================================================
+  GOLDEN STRATEGY PROXY BACKTEST RESULTS
+============================================================
+  Timeframe:     day bars
+  Lookback:      1260 calendar days (~864 day bars)
+  Split date:    2024-01-01
+  Slippage:      0.75% per fill
+  Max positions: 10
+  SPY return:    +80.7% over same period
+
+⚠  SURVIVORSHIP BIAS: universe is current survivors only.
+⚠  PROXY SCORING: Uses sector ETF momentum / volume / price depression
+   instead of actual 13F/ARK holdings data.
+
+──────────────────────────────────────────────────
+  ALL TRADES
+──────────────────────────────────────────────────
+  Trades:        19  (14 wins, 73.7%)
+  Avg Win:       +51.6%
+  Avg Loss:      -19.7%
+  W/L Ratio:     2.6
+  Expectancy:    +32.9% per trade
+  Profit Factor: 7.35x
+  Total Return:  +60.6%  ($160,647)
+  Max Drawdown:  -6.9%
+  Sharpe:        3.80
+  Avg Hold:      60.0 bars
+  Best Trade:    KTOS +56.4% (defense_tech, 2024-08-09)
+  Worst Trade:   NXE -23.9% (energy_transition, 2025-03-24)
+
+──────────────────────────────────────────────────
+  IN-SAMPLE  (before 2024-01-01)
+──────────────────────────────────────────────────
+  Trades:        4  (3 wins, 75.0%)
+  Avg Win:       +51.4%
+  Avg Loss:      -13.1%
+  W/L Ratio:     3.9
+  Expectancy:    +35.2% per trade
+  Profit Factor: 11.74x
+  Total Return:  +13.0%  ($113,011)
+  Max Drawdown:  -0.8%
+  Sharpe:        9.99
+  Avg Hold:      40.0 bars
+  Best Trade:    ARQQ +53.2% (quantum_computing, 2023-10-20)
+  Worst Trade:   RKLB -13.1% (space, 2023-11-10)
+
+──────────────────────────────────────────────────
+  OUT-OF-SAMPLE  (from 2024-01-01)
+──────────────────────────────────────────────────
+  Trades:        15  (11 wins, 73.3%)
+  Avg Win:       +51.7%
+  Avg Loss:      -21.3%
+  W/L Ratio:     2.4
+  Expectancy:    +32.2% per trade
+  Profit Factor: 6.68x
+  Total Return:  +47.6%  ($147,636)
+  Max Drawdown:  -4.6%
+  Sharpe:        4.08
+  Avg Hold:      65.3 bars
+  Best Trade:    KTOS +56.4% (defense_tech, 2024-08-09)
+  Worst Trade:   NXE -23.9% (energy_transition, 2025-03-24)
+
+SUCCESS CRITERIA (pre-defined):
+  [PASS] Expectancy/trade ≥ +5%          got: 32.25
+  [PASS] Avg W / Avg L ≥ 2.0             got: 2.43
+  [PASS] Profit factor ≥ 1.5             got: 6.68
+  [PASS] Max drawdown ≤ 30%              got: 4.6
+  [PASS] Trade count ≥ 10                got: 15
+  Overall: ALL PASS
+
+BY SECTOR:
+  ai_infrastructure        :   2 trades | 100% win | avg +49.2%
+  quantum_computing        :   1 trades | 100% win | avg +53.2%
+  defense_tech             :   1 trades | 100% win | avg +56.4%
+  energy_transition        :   9 trades | 78% win | avg +35.5%
+  biotech_platforms        :   3 trades | 33% win | avg +3.3%
+  space                    :   3 trades | 67% win | avg +29.2%
+
+BY CONVICTION TIER:
+  high           :   4 trades | 75% win | avg +32.3% | avg position 20%
+  medium         :  15 trades | 73% win | avg +33.0% | avg position 10%
+
+BY REGIME (at entry):
+  bull      :   8 trades | 62% win | avg +24.3%
+  bear      :   9 trades | 78% win | avg +36.6%
+  neutral   :   2 trades | 100% win | avg +50.4%
+
+EXIT REASONS:
+  profit_take_50pct        :  14  (74%)
+  stop_loss                :   5  (26%)
+
+TOP 5 TRADES:
+  1. KTOS  : +56.4%  (profit_take_50pct, 106d, tier=medium, corr=44)
+  2. NXE   : +55.9%  (profit_take_50pct, 51d, tier=medium, corr=42)
+  3. UUUU  : +53.6%  (profit_take_50pct, 53d, tier=medium, corr=42)
+  4. ARQQ  : +53.2%  (profit_take_50pct, 17d, tier=medium, corr=48)
+  5. ASTS  : +53.0%  (profit_take_50pct, 13d, tier=medium, corr=53)
