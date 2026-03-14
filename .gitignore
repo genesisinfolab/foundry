@@ -38,3 +38,6 @@ backend/=*
 tradingblueprint.md
 NEWMAN_IDENTITY.md
 start.sh
+backend/venv/
+backend/.venv/
+backend/.venv-local/
