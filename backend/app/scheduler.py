@@ -51,14 +51,12 @@ def get_active_strategies() -> list:
 
 
 def run_golden_scan_cycle():
-    """Golden strategy scan cycle — runs full screening/scoring via GoldenScanner.
-
-    Computes correction_score, fetches 13F + ARK holdings, scores candidates,
-    and flags qualified entries. Does NOT execute trades automatically yet —
-    logs candidates to reasoning_log for review.
+    """Golden strategy scan cycle — runs full screening/scoring via GoldenScanner,
+    then passes qualified candidates to GoldenExecutor for paper trade execution.
     """
     logger.info("Starting Golden strategy scan cycle...")
     from app.services.golden_scanner import GoldenScanner
+    from app.services.golden_executor import GoldenExecutor
     try:
         scanner = GoldenScanner()
         result = scanner.run_scan()
@@ -74,8 +72,27 @@ def run_golden_scan_cycle():
                 f"Golden top candidates: "
                 + ", ".join(f"{c['symbol']}({c['tier']}, {c['conviction_score']:.2f})" for c in top)
             )
+
+            # Execute trades for qualified candidates
+            db = SessionLocal()
+            try:
+                executor = GoldenExecutor()
+                opened = executor.execute_candidates(result["qualified"], db)
+                if opened:
+                    logger.info(
+                        f"Golden Executor: opened {len(opened)} positions — "
+                        + ", ".join(f"{p.symbol}" for p in opened)
+                    )
+                else:
+                    logger.info("Golden Executor: no new positions opened this cycle")
+            except Exception as e:
+                logger.error(f"Golden Executor failed: {e}", exc_info=True)
+            finally:
+                db.close()
+        else:
+            logger.info("Golden scan: no qualified candidates this cycle")
     except Exception as e:
-        logger.error(f"Golden scan cycle failed: {e}")
+        logger.error(f"Golden scan cycle failed: {e}", exc_info=True)
 
 
 def run_scan_cycle():

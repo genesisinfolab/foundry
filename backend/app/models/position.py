@@ -38,6 +38,9 @@ class Position(Base):
     cost_basis = Column(Float, default=0.0)
     stop_loss_price = Column(Float, nullable=True)
 
+    # Strategy identifier (newman | golden)
+    strategy = Column(String(20), default="newman")
+
     # Alpaca order tracking
     alpaca_order_id = Column(String(100), nullable=True)
 

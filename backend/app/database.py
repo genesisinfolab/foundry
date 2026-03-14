@@ -48,6 +48,14 @@ def _run_migrations():
                 cur.execute(
                     f"ALTER TABLE {table} ADD COLUMN tenant_id TEXT NOT NULL DEFAULT 'default'"
                 )
+
+        # Add strategy column to positions (golden executor needs it)
+        pos_cols = [row[1] for row in cur.execute("PRAGMA table_info(positions)").fetchall()]
+        if "strategy" not in pos_cols:
+            cur.execute(
+                "ALTER TABLE positions ADD COLUMN strategy TEXT NOT NULL DEFAULT 'newman'"
+            )
+
         raw.commit()
     finally:
         raw.close()
