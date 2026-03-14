@@ -140,8 +140,9 @@ app.include_router(public.router)      # /api/public/stats
 
 @app.get("/")
 def root():
-    from app.config import settings
-    active = [s.strip() for s in settings.active_strategies.split(",") if s.strip()]
+    from app.config import get_settings
+    s = get_settings()
+    active = [x.strip() for x in s.active_strategies.split(",") if x.strip()]
     return {
         "name": "Foundry",
         "version": "1.0.0",
@@ -153,8 +154,9 @@ def root():
 @app.get("/health")
 def health():
     """Health check endpoint for monitoring and uptime probes."""
-    from app.config import settings
-    active = [s.strip() for s in settings.active_strategies.split(",") if s.strip()]
+    from app.config import get_settings
+    s = get_settings()
+    active = [x.strip() for x in s.active_strategies.split(",") if x.strip()]
     return {
         "status": "ok",
         "name": "Foundry",
