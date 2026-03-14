@@ -41,6 +41,40 @@ def run_scanner(db: Session = Depends(get_db), _auth=Depends(require_api_key)):
     return {"step": "breakout_scan", "breakouts": len(breakouts), "signals": breakouts}
 
 
+@router.post("/run-golden")
+def run_golden(db: Session = Depends(get_db), _auth=Depends(require_api_key)):
+    """Run Golden strategy scan cycle — sector screening, conviction scoring, and execution."""
+    from app.services.golden_scanner import GoldenScanner
+    from app.services.golden_executor import GoldenExecutor
+
+    scanner = GoldenScanner()
+    result = scanner.run_scan()
+
+    opened = []
+    if result["qualified"]:
+        executor = GoldenExecutor()
+        positions = executor.execute_candidates(result["qualified"], db)
+        opened = [
+            {"symbol": p.symbol, "qty": p.qty, "price": p.avg_entry_price, "strategy": "golden"}
+            for p in positions
+        ]
+
+    return {
+        "step": "golden_scan",
+        "correction_score": result["correction"].get("score", 0),
+        "correcting_sectors": result.get("correcting_sectors", []),
+        "universe_size": result["universe_size"],
+        "candidates_scored": result["candidates_scored"],
+        "qualified_count": result["qualified_count"],
+        "qualified_top5": [
+            {"symbol": c["symbol"], "tier": c["tier"], "score": c["conviction_score"], "price": c["price"]}
+            for c in result["qualified"][:5]
+        ],
+        "positions_opened": opened,
+        "scan_duration_secs": result["scan_duration_secs"],
+    }
+
+
 @router.post("/run-risk")
 def run_risk(db: Session = Depends(get_db), _auth=Depends(require_api_key)):
     """Run risk manager check on all open positions."""
